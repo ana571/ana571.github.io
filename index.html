@@ -319,35 +319,6 @@
     margin: 4px 0;
   }
 
-  #export-controls {
-    position: absolute;
-    bottom: 260px;
-    right: 20px;
-    background: rgba(0,0,0,0.8);
-    padding: 10px;
-    border-radius: 6px;
-    font-size: 12px;
-    z-index: 10;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  #export-controls button {
-    padding: 8px 12px;
-    border: none;
-    border-radius: 4px;
-    background: #27ae60;
-    color: white;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  #export-controls button:hover {
-    background: #229954;
-  }
-
   #export-mode-note {
     margin-top: 2px;
     padding-top: 6px;
@@ -522,6 +493,8 @@
     </div>
     <div id="instruction-controls">
       <button id="display-instructions">Display Knitting Instructions</button>
+      <button id="exit-instructions">Exit Instruction Mode</button>
+      <button id="export-instructions">Export Instructions</button>
       <select id="construction-select">
         <option value="top-down">Top Down</option>
         <option value="bottom-up">Bottom Up</option>
@@ -534,6 +507,13 @@
         <button id="step-prev">▲</button>
         <button id="step-next">▼</button>
       </div>
+      <button id="export-drawing">Export Drawing</button>
+      <button id="export-points">Export Points</button>
+      <div id="export-mode-note">Point export mode: right half only</div>
+      <input type="file" id="import-drawing" accept=".json" style="display:none;">
+      <button id="import-drawing-btn">Import Drawing</button>
+      <input type="file" id="import-points" accept=".txt" style="display:none;">
+      <button id="import-points-btn">Import Points</button>
     </div>
 
     <div id="instruction-list" style="display:none;"></div>
@@ -566,20 +546,6 @@
         <input id="distance-cm" type="number" step="0.1" placeholder="distance cm">
       </div>
       <button id="add-design-line">Add Design Line</button>
-    </div>
-    <div id="export-controls">
-      <select id="export-construction-select">
-        <option value="top-down">Top Down</option>
-        <option value="bottom-up">Bottom Up</option>
-      </select>
-      <button id="export-instructions">Export Instructions</button>
-      <button id="export-drawing">Export Drawing</button>
-      <button id="export-points">Export Points</button>
-      <div id="export-mode-note">Point export mode: right half only</div>
-      <input type="file" id="import-drawing" accept=".json" style="display:none;">
-      <button id="import-drawing-btn">Import Drawing</button>
-      <input type="file" id="import-points" accept=".txt" style="display:none;">
-      <button id="import-points-btn">Import Points</button>
     </div>
     <div id="scale-display">
       <div class="scale-line">Scale Information</div>
@@ -777,12 +743,17 @@ function initializeGrid() {
   });
 
   const displayInstructionsBtn = document.getElementById('display-instructions');
+  const exitInstructionsBtn = document.getElementById('exit-instructions');
   const stepPrevBtn = document.getElementById('step-prev');
   const stepNextBtn = document.getElementById('step-next');
   const exportButton = document.getElementById('export-instructions');
 
   displayInstructionsBtn.addEventListener('click', () => {
     startInstructionDisplay();
+  });
+
+  exitInstructionsBtn.addEventListener('click', () => {
+    stopInstructionDisplay();
   });
 
   stepPrevBtn.addEventListener('click', () => {
@@ -845,6 +816,7 @@ function resizeCanvas() {
   canvas.height = wrapper.clientHeight;
   fitGridToWindow();
   draw();
+  positionInstructionListBelowControls();
 }
 
 function fitGridToWindow() {
@@ -990,29 +962,36 @@ function isCellColored(row, col) {
 }
 
 function isCellInsideAnyShape(row, col) {
-  const cellCenter = { row: row + 0.5, col: col + 0.5 };
-
-  const isInsideBaseShape = (targetCenter) => {
-    for (const shape of state.closedShapes) {
-      if (isPointInPolygon(targetCenter, shape)) {
-        return true;
-      }
+  for (const shape of state.closedShapes) {
+    if (isCellInsideShape(shape, row, col)) {
+      return true;
     }
-    return false;
-  };
 
-  if (isInsideBaseShape(cellCenter)) {
-    return true;
+    if (isMirroringEnabled() && isCellInsideShape(shape, row, getMirroredColumn(col))) {
+      return true;
+    }
   }
 
-  if (!isMirroringEnabled()) {
-    return false;
+  return false;
+}
+
+function isCellInsideShape(shape, row, col) {
+  // Multi-sample test reduces diagonal edge holes caused by center-only checks.
+  const sampleOffsets = [
+    { dx: 0.5, dy: 0.5 },
+    { dx: 0.25, dy: 0.25 },
+    { dx: 0.75, dy: 0.25 },
+    { dx: 0.25, dy: 0.75 },
+    { dx: 0.75, dy: 0.75 }
+  ];
+
+  for (const sample of sampleOffsets) {
+    if (isPointInPolygon({ row: row + sample.dy, col: col + sample.dx }, shape)) {
+      return true;
+    }
   }
 
-  // Mirror by filled-cell equivalence: test the mirrored cell center
-  // against the original (right-side) shape set.
-  const mirroredCellCenter = { row: row + 0.5, col: getMirroredColumn(col) + 0.5 };
-  return isInsideBaseShape(mirroredCellCenter);
+  return false;
 }
 
 function getCanonicalColumn(col) {
@@ -1421,12 +1400,15 @@ document.addEventListener('keydown', (e) => {
     state.isSpacePressed = true;
     canvas.style.cursor = 'grab';
   } else if (e.key === 'Escape') {
-    // Cancel drawing mode
+    // Cancel drawing mode or exit instruction mode
     if (state.lineStartCell) {
       e.preventDefault();
       state.lineStartCell = null;
       state.currentShapePoints = [];
       draw();
+    } else if (state.instructionSteps.length) {
+      e.preventDefault();
+      stopInstructionDisplay();
     }
   }
 });
@@ -1587,11 +1569,46 @@ function updateScaleDisplay() {
 }
 
 function isPointInPolygon(point, polygon) {
+  const EPS = 1e-9;
+
+  function isPointOnSegment(px, py, x1, y1, x2, y2) {
+    const squaredLen = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+
+    // Degenerate edge: only treat as on-segment when point is at that vertex.
+    if (squaredLen <= EPS) {
+      const dx = px - x1;
+      const dy = py - y1;
+      return (dx * dx + dy * dy) <= EPS;
+    }
+
+    const cross = (px - x1) * (y2 - y1) - (py - y1) * (x2 - x1);
+    if (Math.abs(cross) > EPS) {
+      return false;
+    }
+
+    const dot = (px - x1) * (x2 - x1) + (py - y1) * (y2 - y1);
+    if (dot < -EPS) {
+      return false;
+    }
+
+    if (dot - squaredLen > EPS) {
+      return false;
+    }
+
+    return true;
+  }
+
   // Ray casting algorithm to check if a point is inside a polygon
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const xi = polygon[i].col, yi = polygon[i].row;
     const xj = polygon[j].col, yj = polygon[j].row;
+
+    // Include boundary points as inside to avoid holes along triangle edges.
+    if (isPointOnSegment(point.col, point.row, xi, yi, xj, yj)) {
+      return true;
+    }
+
     const intersect = ((yi > point.row) !== (yj > point.row)) &&
       (point.col < (xj - xi) * (point.row - yi) / (yj - yi) + xi);
     if (intersect) inside = !inside;
@@ -1614,9 +1631,8 @@ function isBaseCellColored(row, col) {
 }
 
 function isBaseCellInsideAnyShape(row, col) {
-  const cellCenter = { row: row + 0.5, col: col + 0.5 };
   for (const shape of state.closedShapes) {
-    if (isPointInPolygon(cellCenter, shape)) {
+    if (isCellInsideShape(shape, row, col)) {
       return true;
     }
   }
@@ -1744,8 +1760,31 @@ function startInstructionDisplay() {
   draw();
 }
 
+function stopInstructionDisplay() {
+  state.instructionSteps = [];
+  state.instructionIndex = -1;
+  state.highlightedRow = null;
+  const list = document.getElementById('instruction-list');
+  list.style.display = 'none';
+  updateInstructionOverlay();
+  draw();
+}
+
+function positionInstructionListBelowControls() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  const controls = document.getElementById('instruction-controls');
+  const list = document.getElementById('instruction-list');
+
+  const top = controls.offsetTop + controls.offsetHeight + 10;
+  const availableHeight = wrapper.clientHeight - top - 20;
+
+  list.style.top = `${Math.max(10, top)}px`;
+  list.style.maxHeight = `${Math.max(120, availableHeight)}px`;
+}
+
 function renderInstructionList() {
   const list = document.getElementById('instruction-list');
+  positionInstructionListBelowControls();
   list.innerHTML = '';
   list.style.display = state.instructionSteps.length ? 'block' : 'none';
   let activeItem = null;
@@ -1776,7 +1815,7 @@ function stepInstruction(direction) {
 }
 
 function exportInstructions() {
-  const constructionSelect = document.getElementById('export-construction-select');
+  const constructionSelect = document.getElementById('construction-select');
   const construction = constructionSelect.value;
   const instructions = generateKnittingInstructions(construction);
   const element = document.createElement('a');
@@ -1946,14 +1985,6 @@ function importPoints(file) {
 
 function fillShape(shapePoints) {
   if (!shapePoints || !shapePoints.length) return;
-  // Ensure shape is closed by re-adding the first point at the end for consistency
-  if (shapePoints.length > 1) {
-    const first = shapePoints[0];
-    const last = shapePoints[shapePoints.length - 1];
-    if (first.row !== last.row || first.col !== last.col) {
-      shapePoints.push({ row: first.row, col: first.col });
-    }
-  }
   state.closedShapes.push(shapePoints);
 }
 
