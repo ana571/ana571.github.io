@@ -1267,8 +1267,8 @@ function draw() {
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${lineInfo.stitches.toFixed(1)} stitches`, endX + offsetFromEnd + 5, endY - 20);
-    ctx.fillText(`${lineInfo.rows.toFixed(1)} rows`, endX + offsetFromEnd + 5, endY - 8);
+    ctx.fillText(`${lineInfo.stitches} stitches`, endX + offsetFromEnd + 5, endY - 20);
+    ctx.fillText(`${lineInfo.rows} rows`, endX + offsetFromEnd + 5, endY - 8);
     ctx.fillText(`${lineInfo.cm.toFixed(2)} cm`, endX + offsetFromEnd + 5, endY + 4);
   }
 
@@ -2004,7 +2004,7 @@ function calculateLineLength(startCell, endCell) {
   const rowDiff = Math.abs(endCell.row - startCell.row);
   const rectWidthCm = state.cmPer30Stitches / 30;
   const rectHeightCm = state.cmPer30Rows / 30;
-  const stitches = colDiff + 1;
+  const stitches = colDiff;
   const rows = rowDiff + 1;
   const cmX = colDiff * rectWidthCm;
   const cmY = rowDiff * rectHeightCm;
