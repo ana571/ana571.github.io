@@ -1,0 +1,2025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Interactive Knitting Grid</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f5f5;
+    overflow: hidden;
+  }
+  
+  #container {
+    display: flex;
+    height: 100vh;
+    flex-direction: column;
+  }
+  
+  #header {
+    background: #2c3e50;
+    color: white;
+    padding: 15px 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    font-size: 14px;
+  }
+  
+  #stats {
+    display: flex;
+    gap: 30px;
+    align-items: center;
+  }
+  
+  #title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-right: auto;
+  }
+  
+  
+  .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .stat-label {
+    opacity: 0.7;
+  }
+  
+  .stat-value {
+    font-weight: 600;
+    font-size: 16px;
+  }
+  
+  #canvas-wrapper {
+    flex: 1;
+    overflow: hidden;
+    position: relative;
+    background: white;
+  }
+  
+  canvas {
+    display: block;
+    cursor: crosshair;
+  }
+  
+  #instructions {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10;
+    line-height: 1.6;
+  }
+  
+  #line-info {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10;
+  }
+
+  #instruction-controls {
+    position: absolute;
+    top: 170px;
+    right: 20px;
+    background: rgba(0,0,0,0.8);
+    padding: 10px;
+    border-radius: 6px;
+    color: white;
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 10;
+  }
+  
+  #instruction-controls button {
+    padding: 6px 10px;
+    border: none;
+    border-radius: 4px;
+    background: #2ecc71;
+    color: white;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  
+  #instruction-controls button:hover {
+    background: #27ae60;
+  }
+
+  #instruction-controls select {
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    font-size: 12px;
+  }
+
+  #view-mode-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 2px;
+    font-size: 12px;
+  }
+
+  #view-mode-toggle input {
+    width: auto;
+    margin: 0;
+    accent-color: #2ecc71;
+  }
+
+  #instruction-step {
+    display: flex;
+    gap: 6px;
+  }
+
+  #instruction-list {
+    position: absolute;
+    top: 300px;
+    right: 20px;
+    width: 312px; /* +20% */
+    max-height: 360px; /* +20% */
+    overflow-y: auto;
+    background: rgba(255,255,255,0.95);
+    padding: 10px;
+    border-radius: 6px;
+    color: #2c3e50;
+    font-size: 12px;
+    z-index: 10;
+  }
+
+  #instruction-list .instruction-item {
+    margin: 4px 0;
+    padding: 3px 6px;
+    border-radius: 3px;
+  }
+
+  #instruction-list .active {
+    background: #f39c12;
+    color: white;
+  }
+
+  #instruction-overlay {
+    position: absolute;
+    top: 88px;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 240px;
+    max-width: min(520px, calc(100% - 40px));
+    padding: 18px 26px;
+    border-radius: 14px;
+    background: rgba(255,255,255,0.96);
+    box-shadow: 0 14px 40px rgba(44, 62, 80, 0.22);
+    color: #23313f;
+    z-index: 20;
+    text-align: center;
+    border: 1px solid rgba(44, 62, 80, 0.08);
+  }
+
+  #instruction-overlay.hidden {
+    display: none;
+  }
+
+  #instruction-overlay .overlay-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #7f8c8d;
+    text-transform: uppercase;
+  }
+
+  #instruction-overlay .overlay-row {
+    font-size: clamp(40px, 6vw, 72px);
+    line-height: 1;
+    font-weight: 800;
+    margin: 8px 0;
+    color: #2c3e50;
+  }
+
+  #instruction-overlay .overlay-text {
+    font-size: 14px;
+    line-height: 1.4;
+    color: #4b5c6b;
+  }
+
+  #cm-line-controls {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .cm-line-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .cm-line-row label {
+    color: #f7f7f7;
+    min-width: 70px;
+    font-size: 11px;
+  }
+
+  #cm-line-controls input {
+    width: 60px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    font-size: 12px;
+  }
+
+  #add-cm-line {
+    padding: 6px;
+    border: none;
+    border-radius: 4px;
+    background: #3498db;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  #add-cm-line:hover {
+    background: #2980b9;
+  }
+  
+  #design-line-controls {
+    position: absolute;
+    bottom: 130px;
+    right: 20px;
+    background: rgba(0,0,0,0.8);
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #design-line-controls .cm-line-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  #design-line-controls .cm-line-row label {
+    color: #f7f7f7;
+    min-width: 70px;
+    font-size: 11px;
+  }
+
+  #design-line-controls select, #design-line-controls input {
+    width: 60px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    font-size: 12px;
+  }
+
+  #add-design-line {
+    padding: 6px;
+    border: none;
+    border-radius: 4px;
+    background: #e74c3c;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+  }
+
+  #add-design-line:hover {
+    background: #c0392b;
+  }
+
+  #scale-display {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    background: rgba(0,0,0,0.75);
+    color: white;
+    padding: 16px 20px;
+    border-radius: 6px;
+    font-size: 14px;
+    z-index: 10;
+    line-height: 1.6;
+    min-width: 280px;
+  }
+
+  #scale-display .scale-line {
+    font-family: 'Courier New', monospace;
+    margin: 4px 0;
+  }
+
+  #export-controls {
+    position: absolute;
+    bottom: 260px;
+    right: 20px;
+    background: rgba(0,0,0,0.8);
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #export-controls button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    background: #27ae60;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  #export-controls button:hover {
+    background: #229954;
+  }
+
+  #export-mode-note {
+    margin-top: 2px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.82);
+    font-size: 11px;
+    line-height: 1.4;
+  }
+  
+  #selected-info {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255,255,255,0.95);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 10;
+    min-width: 180px;
+  }
+  
+  .info-row {
+    margin: 4px 0;
+  }
+  
+  .info-label {
+    color: #666;
+    font-weight: 500;
+  }
+  
+  .info-value {
+    color: #2c3e50;
+    font-weight: 600;
+  }
+  
+  #setup-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  #setup-modal.hidden {
+    display: none;
+  }
+  
+  .modal-content {
+    background: white;
+    padding: 40px;
+    border-radius: 8px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    max-width: 400px;
+    width: 90%;
+  }
+  
+  .modal-content h2 {
+    margin-bottom: 30px;
+    color: #2c3e50;
+    font-size: 24px;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #2c3e50;
+    font-weight: 500;
+  }
+  
+  .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    font-size: 14px;
+    transition: border-color 0.3s;
+  }
+  
+  .form-group input:focus {
+    outline: none;
+    border-color: #3498db;
+  }
+  
+  .button-group {
+    display: flex;
+    gap: 12px;
+    margin-top: 30px;
+  }
+  
+  button {
+    flex: 1;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+  }
+  
+  #start-button {
+    background: #3498db;
+    color: white;
+  }
+  
+  #start-button:hover {
+    background: #2980b9;
+  }
+  
+  #start-button:disabled {
+    background: #bdc3c7;
+    cursor: not-allowed;
+  }
+  
+  #hover-coords {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 9;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<div id="container">
+  <div id="header">
+    <div id="stats">
+    <div id="title">Interactive Knitting Grid</div>
+    <div class="stat-item">
+        <span class="stat-label">Zoom:</span>
+        <span class="stat-value" id="zoom-level">100%</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">Position:</span>
+        <span class="stat-value" id="position">0,0</span>
+      </div>
+    </div>
+  </div>
+  <div id="canvas-wrapper">
+    <canvas id="knitCanvas"></canvas>
+    <div id="selected-info" style="display:none;">
+      <div class="info-row">
+        <span class="info-label">Selected Cell:</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Row:</span> <span class="info-value" id="sel-row">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Needle:</span> <span class="info-value" id="sel-col">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Cm from origin:</span> <span class="info-value" id="sel-cm">-</span>
+      </div>
+    </div>
+    <div id="instructions">
+      🖱️ Scroll to zoom | Drag to pan<br>
+      Click to select | Shift+Click to draw lines<br>
+      +/- keys to zoom | Space to pan | Esc to cancel drawing | Cmd+Z to undo
+    </div>
+    <div id="line-info">
+      Lines: <span id="line-count">0</span>
+    </div>
+
+    <div id="instruction-controls">
+      <button id="display-instructions">Display Knitting Instructions</button>
+      <select id="construction-select">
+        <option value="top-down">Top Down</option>
+        <option value="bottom-up">Bottom Up</option>
+      </select>
+      <label id="view-mode-toggle">
+        <input type="checkbox" id="full-mode-toggle">
+        <span>Full mode</span>
+      </label>
+      <div id="instruction-step">
+        <button id="step-prev">▲</button>
+        <button id="step-next">▼</button>
+      </div>
+    </div>
+
+    <div id="instruction-list" style="display:none;"></div>
+    <div id="instruction-overlay" class="hidden">
+      <div class="overlay-label">Current Row</div>
+      <div class="overlay-row" id="instruction-overlay-row">-</div>
+      <div class="overlay-text" id="instruction-overlay-text"></div>
+    </div>
+
+    <div id="cm-line-controls">
+      <div class="cm-line-row">
+        <label>Line point A:</label>
+        <input id="x0-cm" type="number" step="0.1" placeholder="x cm">
+        <input id="y0-cm" type="number" min="0" step="0.1" placeholder="y cm">
+      </div>
+      <div class="cm-line-row">
+        <label>Line point B:</label>
+        <input id="x1-cm" type="number" step="0.1" placeholder="x cm">
+        <input id="y1-cm" type="number" min="0" step="0.1" placeholder="y cm">
+      </div>
+      <button id="add-cm-line">Add line (cm)</button>
+    </div>
+    <div id="design-line-controls">
+      <div class="cm-line-row">
+        <label>Design Line:</label>
+        <select id="axis-select">
+          <option value="x">X (vertical)</option>
+          <option value="y">Y (horizontal)</option>
+        </select>
+        <input id="distance-cm" type="number" step="0.1" placeholder="distance cm">
+      </div>
+      <button id="add-design-line">Add Design Line</button>
+    </div>
+    <div id="export-controls">
+      <select id="export-construction-select">
+        <option value="top-down">Top Down</option>
+        <option value="bottom-up">Bottom Up</option>
+      </select>
+      <button id="export-instructions">Export Instructions</button>
+      <button id="export-drawing">Export Drawing</button>
+      <button id="export-points">Export Points</button>
+      <div id="export-mode-note">Point export mode: right half only</div>
+      <input type="file" id="import-drawing" accept=".json" style="display:none;">
+      <button id="import-drawing-btn">Import Drawing</button>
+      <input type="file" id="import-points" accept=".txt" style="display:none;">
+      <button id="import-points-btn">Import Points</button>
+    </div>
+    <div id="scale-display">
+      <div class="scale-line">Scale Information</div>
+    </div>
+    <div id="hover-coords" style="display:none;"></div>
+  </div>
+  
+  <div id="setup-modal">
+    <div class="modal-content">
+      <h2>Create Grid</h2>
+      <div class="form-group">
+        <label for="rows-input">Number of Rows:</label>
+        <input type="number" id="rows-input" min="1" max="1000" value="200">
+      </div>
+      <div class="form-group">
+        <label for="cols-input">Number of stitches:</label>
+        <input type="number" id="cols-input" min="2" max="1000" step="2" value="100">
+      </div>
+      <div class="form-group">
+        <label for="xconv-input">Stitches in 10cm (width):</label>
+        <input type="number" id="xconv-input" min="1" max="10000" step="0.1">
+      </div>
+      <div class="form-group">
+        <label for="yconv-input">Rows in 10cm (height):</label>
+        <input type="number" id="yconv-input" min="1" max="10000" step="0.1">
+      </div>
+      <div class="form-group">
+        <label for="stitches30-input">30 stitches = (cm):</label>
+        <input type="number" id="stitches30-input" min="0.1" step="0.1">
+      </div>
+      <div class="form-group">
+        <label for="rows30-input">30 rows = (cm):</label>
+        <input type="number" id="rows30-input" min="0.1" step="0.1">
+      </div>
+      <div class="button-group">
+        <button id="start-button">Start</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let ROWS = 250;
+let COLS = 200;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 50;
+const ZOOM_INTENSITY = 1.08; // slower zoom
+const LABEL_INTERVAL = 5; // Show numbers every 5 rows/cols
+const LABEL_SPACING = 40; // pixels for labels
+
+const canvas = document.getElementById('knitCanvas');
+const ctx = canvas.getContext('2d');
+
+let state = {
+  offsetX: 0,
+  offsetY: 0,
+  zoom: 1,
+  isDragging: false,
+  dragStartX: 0,
+  dragStartY: 0,
+  dragStartOffsetX: 0,
+  dragStartOffsetY: 0,
+  selectedCell: null,
+  isDrawingLine: false,
+  lineStartCell: null,
+  lines: [],
+  closedShapes: [],
+  currentShapePoints: [],
+  hoveredCell: null,
+  coloredCells: new Map(),
+  isSpacePressed: false,
+  cmPer30Stitches: 10,
+  cmPer30Rows: 10,
+  cellAspect: 1.0,
+  designLines: [],
+  instructionSteps: [],
+  instructionIndex: -1,
+  highlightedRow: null,
+  viewMode: 'half',
+  mode: 'normal'
+};
+
+function initializeGrid() {
+  const rowsInput = document.getElementById('rows-input');
+  const colsInput = document.getElementById('cols-input');
+  const startButton = document.getElementById('start-button');
+  const setupModal = document.getElementById('setup-modal');
+  const addCmLineButton = document.getElementById('add-cm-line');
+  const fullModeToggle = document.getElementById('full-mode-toggle');
+
+  fullModeToggle.checked = state.viewMode === 'full';
+  updateExportModeNote();
+
+  startButton.addEventListener('click', () => {
+    const rows = parseInt(rowsInput.value);
+    const cols = parseInt(colsInput.value);
+    const xconv = parseFloat(document.getElementById('xconv-input').value) || null;
+    const yconv = parseFloat(document.getElementById('yconv-input').value) || null;
+    const cm30st = parseFloat(document.getElementById('stitches30-input').value) || null;
+    const cm30r = parseFloat(document.getElementById('rows30-input').value) || null;
+
+    let effectiveCm30St = cm30st;
+    let effectiveCm30R = cm30r;
+
+    if (effectiveCm30St === null && xconv !== null) {
+      effectiveCm30St = 300 / xconv;
+    }
+    if (effectiveCm30R === null && yconv !== null) {
+      effectiveCm30R = 300 / yconv;
+    }
+    if (xconv === null && effectiveCm30St !== null) {
+      // not needed for now
+    }
+    if (yconv === null && effectiveCm30R !== null) {
+      // not needed
+    }
+
+    if (rows > 0 && cols > 0 && cols % 2 === 0 && effectiveCm30St > 0 && effectiveCm30R > 0) {
+      ROWS = rows;
+      COLS = cols;
+      state.cmPer30Stitches = effectiveCm30St;
+      state.cmPer30Rows = effectiveCm30R;
+      state.cellAspect = effectiveCm30R / effectiveCm30St;
+      setupModal.classList.add('hidden');
+      updateScaleDisplay();
+      resizeCanvas();
+    } else {
+      alert('Please provide valid inputs. Columns must be an even number, and you need at least one scale input per dimension.');
+    }
+  });
+
+  fullModeToggle.addEventListener('change', () => {
+    const { rightStart } = getNeedleLayout();
+    const goingFull = fullModeToggle.checked;
+
+    if (goingFull) {
+      // half → full: axis was at offsetX; after switching, axis will be at offsetX + rightStart * w_full
+      // so subtract rightStart * w_full to compensate
+      const prevOffsetX = state.offsetX;
+      state.viewMode = 'full';
+      const { w } = getCellSize();
+      state.offsetX = prevOffsetX - rightStart * w;
+    } else {
+      // full → half: axis is at offsetX + rightStart * w_full; after switching, axis will be at new offsetX
+      const { w } = getCellSize(); // w_full, captured before mode switch
+      const prevOffsetX = state.offsetX;
+      state.viewMode = 'half';
+      state.offsetX = prevOffsetX + rightStart * w;
+    }
+
+    state.hoveredCell = null;
+    updateExportModeNote();
+    draw();
+  });
+
+  addCmLineButton.addEventListener('click', () => {
+    const x0 = parseFloat(document.getElementById('x0-cm').value);
+    const y0 = parseFloat(document.getElementById('y0-cm').value);
+    const x1 = parseFloat(document.getElementById('x1-cm').value);
+    const y1 = parseFloat(document.getElementById('y1-cm').value);
+
+    if (isNaN(x0) || isNaN(y0) || isNaN(x1) || isNaN(y1)) {
+      return;
+    }
+
+    const startCell = getNearestCellFromCm(x0, y0);
+    const endCell = getNearestCellFromCm(x1, y1);
+
+    if (!startCell || !endCell) return;
+
+    state.lines.push({ start: startCell, end: endCell });
+
+    const lineCells = getLineCells(startCell, endCell);
+    const lineIndex = state.lines.length - 1;
+    for (let cell of lineCells) {
+      const cellKey = `${cell.row},${cell.col}`;
+      state.coloredCells.set(cellKey, lineIndex);
+    }
+
+    draw();
+    updateLineCount();
+  });
+
+  const addDesignLineButton = document.getElementById('add-design-line');
+  addDesignLineButton.addEventListener('click', () => {
+    const axis = document.getElementById('axis-select').value;
+    const distance = parseFloat(document.getElementById('distance-cm').value);
+
+    if (isNaN(distance) || distance < 0) {
+      return;
+    }
+
+    state.designLines.push({ axis, distance });
+    draw();
+  });
+
+  const displayInstructionsBtn = document.getElementById('display-instructions');
+  const stepPrevBtn = document.getElementById('step-prev');
+  const stepNextBtn = document.getElementById('step-next');
+  const exportButton = document.getElementById('export-instructions');
+
+  displayInstructionsBtn.addEventListener('click', () => {
+    startInstructionDisplay();
+  });
+
+  stepPrevBtn.addEventListener('click', () => {
+    stepInstruction(state.construction === 'top-down' ? -1 : 1);
+  });
+  stepNextBtn.addEventListener('click', () => {
+    stepInstruction(state.construction === 'top-down' ? 1 : -1);
+  });
+
+  exportButton.addEventListener('click', () => {
+    exportInstructions();
+  });
+
+  const exportDrawingBtn = document.getElementById('export-drawing');
+  const exportPointsBtn = document.getElementById('export-points');
+  const importDrawingBtn = document.getElementById('import-drawing-btn');
+  const importDrawingInput = document.getElementById('import-drawing');
+
+  exportDrawingBtn.addEventListener('click', () => {
+    exportDrawing();
+  });
+
+  exportPointsBtn.addEventListener('click', () => {
+    exportPoints();
+  });
+
+  importDrawingBtn.addEventListener('click', () => {
+    importDrawingInput.click();
+  });
+
+  importDrawingInput.addEventListener('change', (e) => {
+    importDrawing(e.target.files[0]);
+  });
+
+  const importPointsBtn = document.getElementById('import-points-btn');
+  const importPointsInput = document.getElementById('import-points');
+
+  importPointsBtn.addEventListener('click', () => {
+    importPointsInput.click();
+  });
+
+  importPointsInput.addEventListener('change', (e) => {
+    importPoints(e.target.files[0]);
+  });
+
+  
+  rowsInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') startButton.click();
+  });
+  
+  colsInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') startButton.click();
+  });
+
+}
+
+function resizeCanvas() {
+  const wrapper = document.getElementById('canvas-wrapper');
+  canvas.width = wrapper.clientWidth;
+  canvas.height = wrapper.clientHeight;
+  fitGridToWindow();
+  draw();
+}
+
+function fitGridToWindow() {
+  const visibleCols = getVisibleColumnCount();
+  const baseW = canvas.width / visibleCols;
+  const baseH = canvas.height / ROWS;
+  
+  let w = baseW;
+  let h = baseH;
+  
+  if (h / w > state.cellAspect) {
+    h = w * state.cellAspect;
+  } else {
+    w = h / state.cellAspect;
+  }
+  
+  const gridW = visibleCols * w;
+  const gridH = ROWS * h;
+  
+  state.offsetX = (canvas.width - gridW) / 2;
+  state.offsetY = (canvas.height - gridH) / 2;
+  state.zoom = 1;
+}
+
+window.addEventListener('resize', resizeCanvas);
+
+function getCellSize() {
+  const baseW = canvas.width / getVisibleColumnCount();
+  const baseH = canvas.height / ROWS;
+  
+  let w = baseW;
+  let h = baseH;
+  
+  // Apply zoom
+  w *= state.zoom;
+  h *= state.zoom;
+  
+  // Maintain aspect ratio defined by user (height/width)
+  if (h / w > state.cellAspect) {
+    h = w * state.cellAspect;
+  } else {
+    w = h / state.cellAspect;
+  }
+  return { w, h };
+}
+
+function getNeedleLayout() {
+  const rightStart = COLS / 2;
+  return {
+    leftCount: rightStart,
+    rightCount: COLS - rightStart,
+    rightStart
+  };
+}
+
+function getVisibleColumnRange() {
+  const { rightStart } = getNeedleLayout();
+  if (state.viewMode === 'half') {
+    return { start: rightStart, end: COLS - 1 };
+  }
+  return { start: 0, end: COLS - 1 };
+}
+
+function getVisibleColumnCount() {
+  const range = getVisibleColumnRange();
+  return range.end - range.start + 1;
+}
+
+function getNeedleNumber(col) {
+  const { rightStart } = getNeedleLayout();
+  return col < rightStart ? rightStart - col : col - rightStart + 1;
+}
+
+function getNeedleSide(col) {
+  const { rightStart } = getNeedleLayout();
+  return col < rightStart ? 'L' : 'R';
+}
+
+function formatNeedleLabel(col) {
+  return `${getNeedleSide(col)}${getNeedleNumber(col)}`;
+}
+
+function getAxisColumnOffset() {
+  const { rightStart } = getNeedleLayout();
+  const { start } = getVisibleColumnRange();
+  return rightStart - start;
+}
+
+function getDisplayXForColumn(col, cellWidth) {
+  const { start } = getVisibleColumnRange();
+  return (col - start) * cellWidth;
+}
+
+function updateExportModeNote() {
+  const exportModeNote = document.getElementById('export-mode-note');
+  if (!exportModeNote) {
+    return;
+  }
+
+  exportModeNote.textContent = isMirroringEnabled()
+    ? 'Point export mode: full symmetry (right side and mirrored left side)'
+    : 'Point export mode: right half only';
+}
+
+function isMirroringEnabled() {
+  return state.viewMode === 'full';
+}
+
+function getMirroredColumn(col) {
+  return COLS - 1 - col;
+}
+
+function getMirroredPoint(point) {
+  return { row: point.row, col: getMirroredColumn(point.col) };
+}
+
+function arePointsEqual(first, second) {
+  return first.row === second.row && first.col === second.col;
+}
+
+function isMirroredLineDistinct(line) {
+  const mirroredStart = getMirroredPoint(line.start);
+  const mirroredEnd = getMirroredPoint(line.end);
+  return !(arePointsEqual(line.start, mirroredStart) && arePointsEqual(line.end, mirroredEnd));
+}
+
+function isMirroredShapeDistinct(shape) {
+  return shape.some((point) => point.col !== getMirroredColumn(point.col));
+}
+
+function isCellColored(row, col) {
+  const cellKey = `${row},${col}`;
+  if (state.coloredCells.has(cellKey)) {
+    return true;
+  }
+
+  if (!isMirroringEnabled()) {
+    return false;
+  }
+
+  const mirroredKey = `${row},${getMirroredColumn(col)}`;
+  return state.coloredCells.has(mirroredKey);
+}
+
+function isCellInsideAnyShape(row, col) {
+  const cellCenter = { row: row + 0.5, col: col + 0.5 };
+
+  const isInsideBaseShape = (targetCenter) => {
+    for (const shape of state.closedShapes) {
+      if (isPointInPolygon(targetCenter, shape)) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  if (isInsideBaseShape(cellCenter)) {
+    return true;
+  }
+
+  if (!isMirroringEnabled()) {
+    return false;
+  }
+
+  // Mirror by filled-cell equivalence: test the mirrored cell center
+  // against the original (right-side) shape set.
+  const mirroredCellCenter = { row: row + 0.5, col: getMirroredColumn(col) + 0.5 };
+  return isInsideBaseShape(mirroredCellCenter);
+}
+
+function getCanonicalColumn(col) {
+  const { rightStart } = getNeedleLayout();
+  if (isMirroringEnabled() && col < rightStart) {
+    return getMirroredColumn(col);
+  }
+  return col;
+}
+
+function getCanonicalCoords(coords) {
+  if (!coords) {
+    return null;
+  }
+  return { row: coords.row, col: getCanonicalColumn(coords.col) };
+}
+
+function getLineCells(start, end) {
+  const cells = [];
+  let x0 = start.col;
+  let y0 = start.row;
+  let x1 = end.col;
+  let y1 = end.row;
+  
+  const dx = Math.abs(x1 - x0);
+  const dy = Math.abs(y1 - y0);
+  const sx = x0 < x1 ? 1 : -1;
+  const sy = y0 < y1 ? 1 : -1;
+  let err = dx - dy;
+  
+  let x = x0;
+  let y = y0;
+  
+  while (true) {
+    cells.push({ row: y, col: x });
+    
+    if (x === x1 && y === y1) break;
+    
+    const e2 = 2 * err;
+    if (e2 > -dy) {
+      err -= dy;
+      x += sx;
+    }
+    if (e2 < dx) {
+      err += dx;
+      y += sy;
+    }
+  }
+  
+  return cells;
+}
+
+
+function draw() {
+  const { w, h } = getCellSize();
+  const visibleRange = getVisibleColumnRange();
+  const visibleCols = getVisibleColumnCount();
+  const axisOffset = getAxisColumnOffset();
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  ctx.save();
+  ctx.translate(state.offsetX, state.offsetY);
+
+  // Draw grid
+  ctx.strokeStyle = '#e0e0e0';
+  ctx.lineWidth = 0.5;
+  
+  for (let row = 0; row < ROWS; row++) {
+    const isHighlightRow = state.highlightedRow !== null && row === state.highlightedRow;
+    for (let col = visibleRange.start; col <= visibleRange.end; col++) {
+      const x = getDisplayXForColumn(col, w);
+      const y = row * h;
+      const isColored = isCellColored(row, col);
+      const isShapeFill = isCellInsideAnyShape(row, col);
+      
+      // Check if cell is selected
+      if (state.selectedCell && state.selectedCell.row === row && state.selectedCell.col === col) {
+        ctx.fillStyle = '#3498db';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#2c3e50';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x, y, w, h);
+      } else if (isColored || isShapeFill) {
+        ctx.fillStyle = '#56606f';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#373d46';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, w, h);
+      } else if (state.hoveredCell && state.hoveredCell.row === row && state.hoveredCell.col === col) {
+        ctx.fillStyle = '#ecf0f1';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#bdc3c7';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, w, h);
+      } else {
+        ctx.fillStyle = row % 2 === col % 2 ? '#ffffff' : '#f9f9f9';
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = '#e0e0e0';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, w, h);
+      }
+      if (isHighlightRow) {
+        ctx.fillStyle = 'rgba(255, 215, 0, 0.2)';
+        ctx.fillRect(x, y, w, h);
+      }
+    }
+  }
+
+  // Draw grid lines
+  ctx.strokeStyle = '#d0d0d0';
+  ctx.lineWidth = 0.5;
+  
+  for (let i = 0; i <= ROWS; i++) {
+    ctx.beginPath();
+    ctx.moveTo(0, i * h);
+    ctx.lineTo(visibleCols * w, i * h);
+    ctx.stroke();
+  }
+  
+  for (let i = 0; i <= visibleCols; i++) {
+    ctx.beginPath();
+    ctx.moveTo(i * w, 0);
+    ctx.lineTo(i * w, ROWS * h);
+    ctx.stroke();
+  }
+
+  ctx.strokeStyle = '#f39c12';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(axisOffset * w, 0);
+  ctx.lineTo(axisOffset * w, ROWS * h);
+  ctx.stroke();
+
+  // Draw row numbers every 5 rows: row 1, 5, 10...
+  ctx.restore();
+  ctx.save();
+  ctx.fillStyle = '#666';
+  ctx.font = '12px Arial';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  
+  for (let i = 0; i < ROWS; i++) {
+    const displayRow = i + 1;
+    if (displayRow === 1 || displayRow % LABEL_INTERVAL === 0) {
+      const rowFromTop = ROWS - 1 - i;
+      const y = state.offsetY + (rowFromTop * h) + h / 2;
+      if (y >= -20 && y <= canvas.height + 20) {
+        ctx.fillText(displayRow, state.offsetX - 5, y);
+      }
+    }
+  }
+  
+  // Draw top and bottom needle numbers
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const axisX = state.offsetX + axisOffset * w;
+  if (axisX >= -20 && axisX <= canvas.width + 20) {
+    ctx.fillText('0', axisX, state.offsetY - 10);
+  }
+
+  const bottomLabelY = state.offsetY + (ROWS * h) + 6;
+  if (axisX >= -20 && axisX <= canvas.width + 20 && bottomLabelY <= canvas.height - 2) {
+    ctx.fillText('0', axisX, bottomLabelY);
+  }
+  
+  for (let col = visibleRange.start; col <= visibleRange.end; col++) {
+    const needleNumber = getNeedleNumber(col);
+    if (needleNumber === 1 || needleNumber % LABEL_INTERVAL === 0) {
+      const x = state.offsetX + getDisplayXForColumn(col, w) + w / 2;
+      if (x >= -20 && x <= canvas.width + 20) {
+        ctx.fillText(needleNumber, x, state.offsetY - 10);
+        if (bottomLabelY <= canvas.height - 2) {
+          ctx.fillText(needleNumber, x, bottomLabelY);
+        }
+      }
+    }
+  }
+
+  
+  ctx.restore();
+  ctx.save();
+  ctx.translate(state.offsetX, state.offsetY);
+
+  // Fill closed shapes (dark grey)
+  ctx.fillStyle = '#56606f';
+  ctx.globalAlpha = 0.6;
+  for (let shape of state.closedShapes) {
+    if (shape.length < 3) continue;
+    ctx.beginPath();
+    for (let i = 0; i < shape.length; i++) {
+      const pt = shape[i];
+      const px = getDisplayXForColumn(pt.col, w) + w / 2;
+      const py = pt.row * h + h / 2;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw stored lines
+  ctx.strokeStyle = '#56606f';
+  ctx.lineWidth = 2;
+  
+  for (let line of state.lines) {
+    ctx.beginPath();
+    ctx.moveTo(getDisplayXForColumn(line.start.col, w) + w / 2, line.start.row * h + h / 2);
+    ctx.lineTo(getDisplayXForColumn(line.end.col, w) + w / 2, line.end.row * h + h / 2);
+    ctx.stroke();
+  }
+
+  // Draw design lines
+  ctx.strokeStyle = '#FFB6C1'; // light pink
+  ctx.lineWidth = 2;
+  const cellWidthCm = state.cmPer30Stitches / 30;
+  const cellHeightCm = state.cmPer30Rows / 30;
+  for (let designLine of state.designLines) {
+    if (designLine.axis === 'x') {
+      const x_cm = designLine.distance;
+      const x_grid = getNeedleLayout().rightStart + (x_cm / cellWidthCm);
+      const x_pixel = getDisplayXForColumn(x_grid, w);
+      ctx.beginPath();
+      ctx.moveTo(x_pixel, 0);
+      ctx.lineTo(x_pixel, ROWS * h);
+      ctx.stroke();
+
+      if (isMirroringEnabled() && x_cm !== 0) {
+        const mirroredGrid = getNeedleLayout().rightStart - (x_cm / cellWidthCm);
+        const mirroredPixel = getDisplayXForColumn(mirroredGrid, w);
+        ctx.beginPath();
+        ctx.moveTo(mirroredPixel, 0);
+        ctx.lineTo(mirroredPixel, ROWS * h);
+        ctx.stroke();
+      }
+    } else if (designLine.axis === 'y') {
+      const y_cm = designLine.distance;
+      const y_grid = y_cm / cellHeightCm;
+      const y_pixel = (ROWS - y_grid) * h; // bottom-left origin
+      ctx.beginPath();
+      ctx.moveTo(0, y_pixel);
+      ctx.lineTo(visibleCols * w, y_pixel);
+      ctx.stroke();
+    }
+  }
+
+  // Draw temporary line while selecting end point
+  if (state.lineStartCell && state.hoveredCell) {
+    ctx.strokeStyle = '#56606f';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(getDisplayXForColumn(state.lineStartCell.col, w) + w / 2, state.lineStartCell.row * h + h / 2);
+    ctx.lineTo(getDisplayXForColumn(state.hoveredCell.col, w) + w / 2, state.hoveredCell.row * h + h / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+
+  // Draw line length info near the line endpoint
+  if (state.lineStartCell && state.hoveredCell) {
+    const lineInfo = calculateLineLength(state.lineStartCell, state.hoveredCell);
+    const endX = state.offsetX + getDisplayXForColumn(state.hoveredCell.col, w) + w / 2;
+    const endY = state.offsetY + (state.hoveredCell.row * h + h / 2);
+    const offsetFromEnd = 50;
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(endX + offsetFromEnd - 2, endY - 25, 200, 50);
+
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${lineInfo.stitches.toFixed(1)} stitches`, endX + offsetFromEnd + 5, endY - 20);
+    ctx.fillText(`${lineInfo.rows.toFixed(1)} rows`, endX + offsetFromEnd + 5, endY - 8);
+    ctx.fillText(`${lineInfo.cm.toFixed(2)} cm`, endX + offsetFromEnd + 5, endY + 4);
+  }
+
+  updateStats();
+}
+
+function updateStats() {
+  document.getElementById('zoom-level').textContent = Math.round(state.zoom * 100) + '%';
+  document.getElementById('position').textContent = Math.round(state.offsetX) + ',' + Math.round(state.offsetY);
+}
+
+function getGridCoords(clientX, clientY) {
+  const { w, h } = getCellSize();
+  const visibleRange = getVisibleColumnRange();
+  const rect = canvas.getBoundingClientRect();
+  const x = (clientX - rect.left - state.offsetX) / w;
+  const y = (clientY - rect.top - state.offsetY) / h;
+  const col = Math.floor(x) + visibleRange.start;
+  const row = Math.floor(y);
+  
+  if (row >= 0 && row < ROWS && col >= visibleRange.start && col <= visibleRange.end) {
+    return { row, col };
+  }
+  return null;
+}
+
+// Mouse events
+canvas.addEventListener('mousedown', (e) => {
+  if (e.button === 1 || (e.ctrlKey || e.metaKey) && !e.shiftKey || state.isSpacePressed) {
+    // Middle click or Ctrl+Click or Space+Click for panning
+    state.isDragging = true;
+    state.dragStartX = e.clientX;
+    state.dragStartY = e.clientY;
+    state.dragStartOffsetX = state.offsetX;
+    state.dragStartOffsetY = state.offsetY;
+    canvas.style.cursor = 'grabbing';
+  } else if (e.shiftKey) {
+    // Shift+Click for multi-segment shape / line drawing
+    const coords = getGridCoords(e.clientX, e.clientY);
+    if (coords) {
+      if (!state.lineStartCell) {
+        state.lineStartCell = coords;
+        state.currentShapePoints = [coords];
+      } else {
+        const lineObj = {
+          start: state.lineStartCell,
+          end: coords
+        };
+        state.lines.push(lineObj);
+
+        const lineCells = getLineCells(state.lineStartCell, coords);
+        const lineIndex = state.lines.length - 1;
+        for (let cell of lineCells) {
+          const cellKey = `${cell.row},${cell.col}`;
+          state.coloredCells.set(cellKey, lineIndex);
+        }
+
+        // Add endpoint to shape points
+        state.currentShapePoints.push(coords);
+
+        // Close shape when user returns to first point
+        const first = state.currentShapePoints[0];
+        if (state.currentShapePoints.length > 2 && coords.row === first.row && coords.col === first.col) {
+          // Remove duplicate endpoint from list; first already present
+          state.currentShapePoints.pop();
+          
+          state.closedShapes.push([...state.currentShapePoints]);
+          state.currentShapePoints = [];
+          state.lineStartCell = null;
+        } else {
+          state.lineStartCell = coords;
+        }
+
+        draw();
+        updateLineCount();
+      }
+    }
+  } else {
+    // Left click for selection
+    const coords = getGridCoords(e.clientX, e.clientY);
+    if (coords && !state.isSpacePressed) {
+      state.selectedCell = coords;
+      showSelectedInfo(coords);
+      
+      // Show coordinates with bottom-left origin
+      const displayRow = ROWS - coords.row;
+      const hoverCoords = document.getElementById('hover-coords');
+      hoverCoords.textContent = `Row: ${displayRow} | Needle: ${formatNeedleLabel(coords.col)}`;
+      hoverCoords.style.display = 'block';
+      
+      draw();
+    }
+  }
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (state.isDragging) {
+    const dx = e.clientX - state.dragStartX;
+    const dy = e.clientY - state.dragStartY;
+    state.offsetX = state.dragStartOffsetX + dx;
+    state.offsetY = state.dragStartOffsetY + dy;
+    draw();
+  } else {
+    // Update hovered cell for line preview
+    const coords = getGridCoords(e.clientX, e.clientY);
+    if (coords) {
+      state.hoveredCell = coords;
+      if (state.lineStartCell) {
+        draw();
+      }
+    }
+  }
+});
+
+canvas.addEventListener('mouseup', () => {
+  state.isDragging = false;
+  canvas.style.cursor = state.lineStartCell ? 'crosshair' : 'crosshair';
+});
+
+canvas.addEventListener('mouseleave', () => {
+  state.isDragging = false;
+  if (!state.isSpacePressed) {
+    canvas.style.cursor = 'crosshair';
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === ' ' && !state.isSpacePressed) {
+    e.preventDefault();
+    state.isSpacePressed = true;
+    canvas.style.cursor = 'grab';
+  } else if (e.key === 'Escape') {
+    // Cancel drawing mode
+    if (state.lineStartCell) {
+      e.preventDefault();
+      state.lineStartCell = null;
+      state.currentShapePoints = [];
+      draw();
+    }
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  if (e.key === ' ') {
+    state.isSpacePressed = false;
+    canvas.style.cursor = state.isDragging ? 'grabbing' : 'crosshair';
+  }
+});
+
+// Wheel zoom
+canvas.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  
+  const oldZoom = state.zoom;
+  state.zoom *= e.deltaY > 0 ? (1 / ZOOM_INTENSITY) : ZOOM_INTENSITY;
+  state.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, state.zoom));
+  
+  // Adjust offset to zoom towards cursor
+  const zoomRatio = state.zoom / oldZoom;
+  state.offsetX = x - (x - state.offsetX) * zoomRatio;
+  state.offsetY = y - (y - state.offsetY) * zoomRatio;
+  
+  draw();
+}, { passive: false });
+
+// Keyboard zoom
+document.addEventListener('keydown', (e) => {
+  if (e.key === '+' || e.key === '=') {
+    e.preventDefault();
+    const oldZoom = state.zoom;
+    state.zoom = Math.min(MAX_ZOOM, state.zoom * ZOOM_INTENSITY);
+    
+    // Zoom to center of canvas
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const zoomRatio = state.zoom / oldZoom;
+    state.offsetX = cx - (cx - state.offsetX) * zoomRatio;
+    state.offsetY = cy - (cy - state.offsetY) * zoomRatio;
+    
+    draw();
+  } else if (e.key === '-' || e.key === '_') {
+    e.preventDefault();
+    const oldZoom = state.zoom;
+    state.zoom = Math.max(MIN_ZOOM, state.zoom / ZOOM_INTENSITY);
+    
+    // Zoom to center of canvas
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const zoomRatio = state.zoom / oldZoom;
+    state.offsetX = cx - (cx - state.offsetX) * zoomRatio;
+    state.offsetY = cy - (cy - state.offsetY) * zoomRatio;
+    
+    draw();
+  } else if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
+    // Undo: remove last line
+    e.preventDefault();
+    undoLastLine();
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    stepInstruction(state.construction === 'top-down' ? -1 : 1);
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    stepInstruction(state.construction === 'top-down' ? 1 : -1);
+  }
+});
+
+function getNearestCellFromCm(xCm, yCm) {
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  const { rightStart } = getNeedleLayout();
+
+  let col = Math.round((xCm / rectWidthCm) + rightStart - 0.5);
+  let rowBottom = Math.round(yCm / rectHeightCm - 0.5);
+
+  col = Math.max(0, Math.min(COLS - 1, col));
+  rowBottom = Math.max(0, Math.min(ROWS - 1, rowBottom));
+
+  return { row: ROWS - 1 - rowBottom, col };
+}
+
+function undoLastLine() {
+  if (state.lines.length === 0) return;
+  
+  const lastLineIndex = state.lines.length - 1;
+  state.lines.pop();
+  
+  // Remove colored cells associated with the last line
+  const cellsToRemove = [];
+  for (let [cellKey, lineIndex] of state.coloredCells.entries()) {
+    if (lineIndex === lastLineIndex) {
+      cellsToRemove.push(cellKey);
+    }
+  }
+  
+  for (let cellKey of cellsToRemove) {
+    state.coloredCells.delete(cellKey);
+  }
+  
+  // Rebuild coloredCells map because line indices have shifted
+  const newColoredCells = new Map();
+  for (let [cellKey, lineIndex] of state.coloredCells.entries()) {
+    newColoredCells.set(cellKey, lineIndex);
+  }
+  state.coloredCells = newColoredCells;
+  
+  updateLineCount();
+  draw();
+}
+
+function showSelectedInfo(coords) {
+  const info = document.getElementById('selected-info');
+  const displayRow = ROWS - coords.row;
+  document.getElementById('sel-row').textContent = displayRow;
+  document.getElementById('sel-col').textContent = formatNeedleLabel(coords.col);
+
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  const xCm = ((coords.col - getNeedleLayout().rightStart) + 0.5) * rectWidthCm;
+  const yCm = (displayRow + 0.5) * rectHeightCm;
+
+  document.getElementById('sel-cm').textContent = `${xCm.toFixed(2)} cm, ${yCm.toFixed(2)} cm`;
+  info.style.display = 'block';
+}
+
+function updateLineCount() {
+  document.getElementById('line-count').textContent = state.lines.length;
+}
+
+function updateScaleDisplay() {
+  const cmPerStitch = state.cmPer30Stitches / 30;
+  const cmPerRow = state.cmPer30Rows / 30;
+  const stitchesPerCm = 1 / cmPerStitch;
+  const rowsPerCm = 1 / cmPerRow;
+  const stitchesPer10cm = stitchesPerCm * 10;
+  const rowsPer10cm = rowsPerCm * 10;
+
+  const scaleDisplay = document.getElementById('scale-display');
+  scaleDisplay.innerHTML = `
+    <div class="scale-line"><strong>Scale Information</strong></div>
+    <div class="scale-line">30 stitches = ${state.cmPer30Stitches.toFixed(2)} cm</div>
+    <div class="scale-line">30 rows = ${state.cmPer30Rows.toFixed(2)} cm</div>
+    <div class="scale-line" style="margin-top: 8px; border-top: 1px solid #666; padding-top: 8px;">
+      In 10 cm: ${stitchesPer10cm.toFixed(1)} stitches
+    </div>
+    <div class="scale-line">
+      In 10 cm: ${rowsPer10cm.toFixed(1)} rows
+    </div>
+  `;
+}
+
+function isPointInPolygon(point, polygon) {
+  // Ray casting algorithm to check if a point is inside a polygon
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].col, yi = polygon[i].row;
+    const xj = polygon[j].col, yj = polygon[j].row;
+    const intersect = ((yi > point.row) !== (yj > point.row)) &&
+      (point.col < (xj - xi) * (point.row - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function countStitchesInRow(row) {
+  let count = 0;
+  for (let col = 0; col < COLS; col++) {
+    if (isCellColored(row, col) || isCellInsideAnyShape(row, col)) {
+      count++;
+    }
+  }
+  return count;
+}
+
+function isBaseCellColored(row, col) {
+  return state.coloredCells.has(`${row},${col}`);
+}
+
+function isBaseCellInsideAnyShape(row, col) {
+  const cellCenter = { row: row + 0.5, col: col + 0.5 };
+  for (const shape of state.closedShapes) {
+    if (isPointInPolygon(cellCenter, shape)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function countInstructionStitchesInRow(row) {
+  const { rightStart } = getNeedleLayout();
+  let count = 0;
+
+  for (let col = rightStart; col < COLS; col++) {
+    if (isBaseCellColored(row, col) || isBaseCellInsideAnyShape(row, col)) {
+      count++;
+    }
+  }
+
+  return count;
+}
+
+function getInstructionRowData(construction = state.construction) {
+  const rowsWithCounts = [];
+
+  for (let row = 0; row < ROWS; row++) {
+    const stitchCount = countInstructionStitchesInRow(row);
+    if (stitchCount > 0) {
+      rowsWithCounts.push({ physicalRow: row, stitchCount });
+    }
+  }
+
+  if (!rowsWithCounts.length) {
+    return [];
+  }
+
+  const orderedRows = construction === 'bottom-up'
+    ? [...rowsWithCounts].reverse()
+    : rowsWithCounts;
+
+  return orderedRows.map((rowData, index) => ({
+    rowLabel: index + 1,
+    physicalRow: rowData.physicalRow,
+    stitchCount: rowData.stitchCount
+  }));
+}
+
+function buildInstructionSteps(construction = state.construction) {
+  const rowData = getInstructionRowData(construction);
+
+  if (!rowData.length) {
+    return [];
+  }
+
+  return rowData.map((row, index) => {
+    const nextRow = rowData[index + 1];
+    let text = `Row ${row.rowLabel}: K ${row.stitchCount} st`;
+
+    if (nextRow) {
+      const diff = row.stitchCount - nextRow.stitchCount;
+
+      if (diff > 0) {
+        text += `, dec ${diff} st`;
+      } else if (diff < 0) {
+        text += `, inc ${Math.abs(diff)} st`;
+      }
+    }
+
+    return {
+      text,
+      physicalRow: row.physicalRow,
+      rowLabel: row.rowLabel
+    };
+  });
+}
+
+function generateKnittingInstructions(construction = state.construction) {
+  const hasStitches = state.coloredCells.size > 0 || state.closedShapes.length > 0;
+  if (!hasStitches) {
+    return 'No shapes drawn yet.';
+  }
+
+  const instructionSteps = buildInstructionSteps(construction);
+  if (!instructionSteps.length) {
+    return 'No stitches detected in any row.';
+  }
+
+  return instructionSteps.map((step) => step.text).join('\n');
+}
+
+function prepareInstructionSteps() {
+  return buildInstructionSteps();
+}
+
+function updateInstructionOverlay() {
+  const overlay = document.getElementById('instruction-overlay');
+  const rowElement = document.getElementById('instruction-overlay-row');
+  const textElement = document.getElementById('instruction-overlay-text');
+  const step = state.instructionSteps[state.instructionIndex];
+
+  if (!step) {
+    overlay.classList.add('hidden');
+    rowElement.textContent = '-';
+    textElement.textContent = '';
+    return;
+  }
+
+  rowElement.textContent = step.rowLabel !== null ? `Row ${step.rowLabel}` : 'Note';
+  textElement.textContent = step.text;
+  overlay.classList.remove('hidden');
+}
+
+function startInstructionDisplay() {
+  state.construction = document.getElementById('construction-select').value;
+  state.instructionSteps = prepareInstructionSteps();
+  if (!state.instructionSteps.length) {
+    document.getElementById('instruction-list').style.display = 'none';
+    state.instructionIndex = -1;
+    state.highlightedRow = null;
+    updateInstructionOverlay();
+    draw();
+    return;
+  }
+  state.instructionIndex = 0;
+  state.highlightedRow = state.instructionSteps[0].physicalRow;
+  renderInstructionList();
+  updateInstructionOverlay();
+  draw();
+}
+
+function renderInstructionList() {
+  const list = document.getElementById('instruction-list');
+  list.innerHTML = '';
+  list.style.display = state.instructionSteps.length ? 'block' : 'none';
+  let activeItem = null;
+
+  state.instructionSteps.forEach((step, index) => {
+    const item = document.createElement('div');
+    item.textContent = step.text;
+    item.className = 'instruction-item';
+    if (index === state.instructionIndex) {
+      item.classList.add('active');
+      activeItem = item;
+    }
+    list.appendChild(item);
+  });
+
+  if (activeItem) {
+    activeItem.scrollIntoView({ block: 'nearest' });
+  }
+}
+
+function stepInstruction(direction) {
+  if (!state.instructionSteps.length) return;
+  state.instructionIndex = Math.max(0, Math.min(state.instructionSteps.length - 1, state.instructionIndex + direction));
+  state.highlightedRow = state.instructionSteps[state.instructionIndex].physicalRow;
+  renderInstructionList();
+  updateInstructionOverlay();
+  draw();
+}
+
+function exportInstructions() {
+  const constructionSelect = document.getElementById('export-construction-select');
+  const construction = constructionSelect.value;
+  const instructions = generateKnittingInstructions(construction);
+  const element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(instructions));
+  element.setAttribute('download', 'knitting_instructions.txt');
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+function exportDrawing() {
+  const drawingData = {
+    ROWS,
+    COLS,
+    lines: state.lines,
+    coloredCells: Object.fromEntries(state.coloredCells),
+    closedShapes: state.closedShapes,
+    designLines: state.designLines,
+    construction: state.construction,
+    viewMode: state.viewMode,
+    cmPer30Stitches: state.cmPer30Stitches,
+    cmPer30Rows: state.cmPer30Rows,
+    cellAspect: state.cellAspect
+  };
+  const dataStr = JSON.stringify(drawingData, null, 2);
+  const element = document.createElement('a');
+  element.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(dataStr));
+  element.setAttribute('download', 'knitting_drawing.json');
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+function gridToCm(row, col) {
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  const x = parseFloat(((col - getNeedleLayout().rightStart) * rectWidthCm).toFixed(2));
+  const y = parseFloat(((ROWS - 1 - row) * rectHeightCm).toFixed(2));
+  return { x, y };
+}
+
+function exportPoints() {
+  let content = '';
+
+  for (let shape of state.closedShapes) {
+    if (!shape.length) continue;
+    const points = shape.map((p) => {
+      const cm = gridToCm(p.row, p.col);
+      return `(${cm.x},${cm.y})`;
+    }).join(' ');
+    content += `inside ${points}\n`;
+
+    if (isMirroringEnabled() && isMirroredShapeDistinct(shape)) {
+      const mirroredPoints = shape.map((p) => {
+        const cm = gridToCm(p.row, getMirroredColumn(p.col));
+        return `(${cm.x},${cm.y})`;
+      }).join(' ');
+      content += `inside ${mirroredPoints}\n`;
+    }
+  }
+
+  for (let line of state.lines) {
+    const startCm = gridToCm(line.start.row, line.start.col);
+    const endCm = gridToCm(line.end.row, line.end.col);
+    content += `line (${startCm.x},${startCm.y}) (${endCm.x},${endCm.y})\n`;
+
+    if (isMirroringEnabled() && isMirroredLineDistinct(line)) {
+      const mirroredStart = getMirroredPoint(line.start);
+      const mirroredEnd = getMirroredPoint(line.end);
+      const mirroredStartCm = gridToCm(mirroredStart.row, mirroredStart.col);
+      const mirroredEndCm = gridToCm(mirroredEnd.row, mirroredEnd.col);
+      content += `line (${mirroredStartCm.x},${mirroredStartCm.y}) (${mirroredEndCm.x},${mirroredEndCm.y})\n`;
+    }
+  }
+
+  if (!content) {
+    alert('Nothing to export as points');
+    return;
+  }
+
+  const element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
+  element.setAttribute('download', 'knitting_points.txt');
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+function importDrawing(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const drawingData = JSON.parse(e.target.result);
+      // Validate
+      if (!drawingData.ROWS || !drawingData.COLS) {
+        alert('Invalid drawing file.');
+        return;
+      }
+      // For now, assume same size, or resize if needed
+      if (drawingData.ROWS !== ROWS || drawingData.COLS !== COLS) {
+        alert('Drawing size does not match current grid. Please create a new grid with matching size.');
+        return;
+      }
+      // Set state
+      state.lines = drawingData.lines || [];
+      state.coloredCells = new Map(Object.entries(drawingData.coloredCells || {}));
+      state.closedShapes = drawingData.closedShapes || [];
+      state.designLines = drawingData.designLines || [];
+      state.construction = drawingData.construction || 'top-down';
+      state.viewMode = drawingData.viewMode || 'half';
+      state.cmPer30Stitches = drawingData.cmPer30Stitches || 10;
+      state.cmPer30Rows = drawingData.cmPer30Rows || 10;
+      state.cellAspect = drawingData.cellAspect || 1;
+      // Update UI
+      document.getElementById('construction-select').value = state.construction;
+      document.getElementById('full-mode-toggle').checked = state.viewMode === 'full';
+      updateExportModeNote();
+      updateScaleDisplay();
+      // Clear instructions
+      state.instructionSteps = [];
+      state.instructionIndex = -1;
+      state.highlightedRow = null;
+      document.getElementById('instruction-list').style.display = 'none';
+      updateInstructionOverlay();
+      fitGridToWindow();
+      draw();
+    } catch (err) {
+      alert('Error loading drawing: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function importPoints(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target.result;
+      const lines = text.split('\n');
+      for (let line of lines) {
+        line = line.trim();
+        if (line.startsWith('inside ')) {
+          const pointsStr = line.substring(7);
+          const points = parsePoints(pointsStr);
+          const gridPoints = points.map(p => cmToGrid(p.x, p.y));
+          fillShape(gridPoints);
+        } else if (line.startsWith('line ')) {
+          const pointsStr = line.substring(5);
+          const points = parsePoints(pointsStr);
+          if (points.length === 2) {
+            const start = cmToGrid(points[0].x, points[0].y);
+            const end = cmToGrid(points[1].x, points[1].y);
+            addLine(start, end);
+          }
+        }
+      }
+      draw();
+    } catch (err) {
+      alert('Error importing points: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function fillShape(shapePoints) {
+  if (!shapePoints || !shapePoints.length) return;
+  // Ensure shape is closed by re-adding the first point at the end for consistency
+  if (shapePoints.length > 1) {
+    const first = shapePoints[0];
+    const last = shapePoints[shapePoints.length - 1];
+    if (first.row !== last.row || first.col !== last.col) {
+      shapePoints.push({ row: first.row, col: first.col });
+    }
+  }
+  state.closedShapes.push(shapePoints);
+}
+
+function addLine(start, end) {
+  const lineObj = { start, end };
+  state.lines.push(lineObj);
+  const lineCells = getLineCells(start, end);
+  const lineIndex = state.lines.length - 1;
+  for (let cell of lineCells) {
+    const cellKey = `${cell.row},${cell.col}`;
+    state.coloredCells.set(cellKey, lineIndex);
+  }
+}
+
+function calculateLineLength(startCell, endCell) {
+  const colDiff = Math.abs(endCell.col - startCell.col);
+  const rowDiff = Math.abs(endCell.row - startCell.row);
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  const stitches = colDiff + 1;
+  const rows = rowDiff + 1;
+  const cmX = colDiff * rectWidthCm;
+  const cmY = rowDiff * rectHeightCm;
+  const totalCm = Math.sqrt(cmX * cmX + cmY * cmY);
+  return { stitches, rows, cm: totalCm };
+}
+
+function parsePoints(str) {
+  const points = [];
+  const regex = /\(\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)/g;
+  let match;
+  while ((match = regex.exec(str)) !== null) {
+    points.push({ x: parseFloat(match[1]), y: parseFloat(match[2]) });
+  }
+  return points;
+}
+
+function cmToGrid(xCm, yCm) {
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  const col = Math.round((xCm / rectWidthCm) + getNeedleLayout().rightStart);
+  const row = ROWS - 1 - Math.round(yCm / rectHeightCm);
+  return { row, col };
+}
+
+// Initialize
+initializeGrid();
+updateScaleDisplay();
+</script>
+</body>
+</html>
