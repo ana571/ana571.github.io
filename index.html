@@ -136,17 +136,23 @@
 
   #instruction-list {
     position: absolute;
-    top: 300px;
-    right: 20px;
-    width: 312px; /* +20% */
-    max-height: 360px; /* +20% */
+    top: 20px;
+    right: 340px;
+    width: 250px;
+    max-height: 220px;
     overflow-y: auto;
     background: rgba(255,255,255,0.95);
-    padding: 10px;
+    padding: 8px;
     border-radius: 6px;
     color: #2c3e50;
-    font-size: 12px;
+    font-size: 11px;
     z-index: 10;
+    cursor: grab;
+  }
+
+  #instruction-list.dragging {
+    cursor: grabbing;
+    user-select: none;
   }
 
   #instruction-list .instruction-item {
@@ -175,10 +181,16 @@
     z-index: 20;
     text-align: center;
     border: 1px solid rgba(44, 62, 80, 0.08);
+    cursor: grab;
   }
 
   #instruction-overlay.hidden {
     display: none;
+  }
+
+  #instruction-overlay.dragging {
+    cursor: grabbing;
+    user-select: none;
   }
 
   #instruction-overlay .overlay-label {
@@ -319,6 +331,31 @@
     margin: 4px 0;
   }
 
+  #export-controls {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    font-size: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #export-controls button {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    background: #27ae60;
+    color: white;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  #export-controls button:hover {
+    background: #229954;
+  }
+
   #export-mode-note {
     margin-top: 2px;
     padding-top: 6px;
@@ -454,8 +491,129 @@
     border-radius: 4px;
     font-size: 14px;
     font-weight: 600;
-    z-index: 9;
+    z-index: 30;
     pointer-events: none;
+  }
+
+  /* === Toggle UI Button (in header) === */
+  #toggle-ui-btn {
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.35);
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    flex: none;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  #toggle-ui-btn:hover { background: rgba(255,255,255,0.25); }
+
+  /* === Notes Panel === */
+  #notes-panel {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.8);
+    color: white;
+    padding: 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 280px;
+  }
+
+  .notes-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  #notes-collapse-btn {
+    background: transparent;
+    color: rgba(255,255,255,0.7);
+    border: none;
+    font-size: 12px;
+    padding: 0;
+    cursor: pointer;
+    flex: none;
+    line-height: 1;
+  }
+  #notes-collapse-btn:hover { color: white; }
+
+  .notes-body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  #notes-area {
+    width: 100%;
+    min-height: 80px;
+    padding: 6px;
+    border-radius: 4px;
+    border: 1px solid #555;
+    font-size: 12px;
+    font-family: inherit;
+    resize: vertical;
+    background: #1a1a1a;
+    color: white;
+    box-sizing: border-box;
+  }
+
+  #save-notes-btn {
+    padding: 5px 8px;
+    border: none;
+    border-radius: 4px;
+    background: #3498db;
+    color: white;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    flex: none;
+  }
+  #save-notes-btn:hover { background: #2980b9; }
+
+  /* === Project Name in Scale Panel === */
+  #project-name-display {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #555;
+  }
+  #project-name-display label {
+    font-size: 11px;
+    color: #aaa;
+    display: block;
+    margin-bottom: 3px;
+  }
+  #project-name-display input {
+    background: #1a1a1a;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* === UI Hidden Mode === */
+  body.ui-hidden #scale-display,
+  body.ui-hidden #selected-info,
+  body.ui-hidden #instruction-list,
+  body.ui-hidden #design-line-controls,
+  body.ui-hidden #cm-line-controls,
+  body.ui-hidden #instructions,
+  body.ui-hidden #export-controls {
+    display: none !important;
   }
 </style>
 </head>
@@ -468,6 +626,7 @@
         <span class="stat-label">Zoom:</span>
         <span class="stat-value" id="zoom-level">100%</span>
       </div>
+      <button id="toggle-ui-btn" title="Toggle UI panels">Hide UI</button>
     </div>
   </div>
   <div id="canvas-wrapper">
@@ -487,14 +646,12 @@
       </div>
     </div>
     <div id="instructions">
-      🖱️ Scroll to zoom | Drag to pan<br>
+      🖱️ Scroll to zoom | Click+drag or Space to pan<br>
       Click to select | Shift+Click to draw lines<br>
-      +/- keys to zoom | Space to pan | Esc to cancel drawing | Cmd+Z to undo
+      +/- to zoom | Esc to cancel | Cmd+Z to undo (lines &amp; design lines)
     </div>
     <div id="instruction-controls">
       <button id="display-instructions">Display Knitting Instructions</button>
-      <button id="exit-instructions">Exit Instruction Mode</button>
-      <button id="export-instructions">Export Instructions</button>
       <select id="construction-select">
         <option value="top-down">Top Down</option>
         <option value="bottom-up">Bottom Up</option>
@@ -503,17 +660,25 @@
         <input type="checkbox" id="full-mode-toggle">
         <span>Full mode</span>
       </label>
+      <label style="display:flex;align-items:center;gap:8px;padding-top:2px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="fill-shapes-checkbox" checked style="width:auto;margin:0;accent-color:#2ecc71;">
+        <span>Fill shapes</span>
+      </label>
       <div id="instruction-step">
         <button id="step-prev">▲</button>
         <button id="step-next">▼</button>
       </div>
-      <button id="export-drawing">Export Drawing</button>
-      <button id="export-points">Export Points</button>
-      <div id="export-mode-note">Point export mode: right half only</div>
-      <input type="file" id="import-drawing" accept=".json" style="display:none;">
-      <button id="import-drawing-btn">Import Drawing</button>
-      <input type="file" id="import-points" accept=".txt" style="display:none;">
-      <button id="import-points-btn">Import Points</button>
+      <button id="exit-instructions">Exit Knitting Instructions</button>
+      <div id="export-controls">
+        <button id="export-instructions">Export Instructions</button>
+        <button id="export-drawing">Export Drawing</button>
+        <button id="export-points">Export Points</button>
+        <div id="export-mode-note">Point export mode: right half only</div>
+        <input type="file" id="import-drawing" accept=".json" style="display:none;">
+        <button id="import-drawing-btn">Import Drawing</button>
+        <input type="file" id="import-points" accept=".txt" style="display:none;">
+        <button id="import-points-btn">Import Points</button>
+      </div>
     </div>
 
     <div id="instruction-list" style="display:none;"></div>
@@ -551,11 +716,25 @@
       <div class="scale-line">Scale Information</div>
     </div>
     <div id="hover-coords" style="display:none;"></div>
+    <div id="notes-panel">
+      <div class="notes-header">
+        <span>Notes</span>
+        <button id="notes-collapse-btn" title="Collapse notes">▲</button>
+      </div>
+      <div class="notes-body">
+        <textarea id="notes-area" placeholder="Write notes here…"></textarea>
+        <button id="save-notes-btn">Save Notes as .txt</button>
+      </div>
+    </div>
   </div>
-  
+
   <div id="setup-modal">
     <div class="modal-content">
       <h2>Create Grid</h2>
+      <div class="form-group">
+        <label for="project-name-input">Project Name:</label>
+        <input type="text" id="project-name-input" placeholder="e.g. halter_top" value="knitting">
+      </div>
       <div class="form-group">
         <label for="rows-input">Number of Rows:</label>
         <input type="number" id="rows-input" min="1" max="1000" value="200">
@@ -625,8 +804,23 @@ let state = {
   instructionIndex: -1,
   highlightedRow: null,
   viewMode: 'half',
-  mode: 'normal'
+  mode: 'normal',
+  actionHistory: [],
+  fillEnabled: true,
+  projectName: 'knitting',
+  notes: '',
+  lineRevision: 0,
+  interiorCacheRevision: -1,
+  interiorCellsFromLines: new Set()
 };
+
+const DRAG_THRESHOLD = 5;
+let pendingPan = null;
+
+function markLineDataChanged() {
+  state.lineRevision += 1;
+  state.interiorCacheRevision = -1;
+}
 
 function initializeGrid() {
   const rowsInput = document.getElementById('rows-input');
@@ -669,6 +863,7 @@ function initializeGrid() {
       state.cmPer30Stitches = effectiveCm30St;
       state.cmPer30Rows = effectiveCm30R;
       state.cellAspect = effectiveCm30R / effectiveCm30St;
+      state.projectName = (document.getElementById('project-name-input').value || '').trim() || 'knitting';
       setupModal.classList.add('hidden');
       updateScaleDisplay();
       resizeCanvas();
@@ -717,6 +912,8 @@ function initializeGrid() {
     if (!startCell || !endCell) return;
 
     state.lines.push({ start: startCell, end: endCell });
+    state.actionHistory.push({ type: 'line' });
+    markLineDataChanged();
 
     const lineCells = getLineCells(startCell, endCell);
     const lineIndex = state.lines.length - 1;
@@ -739,6 +936,7 @@ function initializeGrid() {
     }
 
     state.designLines.push({ axis, distance });
+    state.actionHistory.push({ type: 'designLine' });
     draw();
   });
 
@@ -808,6 +1006,124 @@ function initializeGrid() {
     if (e.key === 'Enter') startButton.click();
   });
 
+  document.getElementById('fill-shapes-checkbox').addEventListener('change', (e) => {
+    state.fillEnabled = e.target.checked;
+    draw();
+  });
+
+  document.getElementById('toggle-ui-btn').addEventListener('click', () => {
+    const isHidden = document.body.classList.toggle('ui-hidden');
+    document.getElementById('toggle-ui-btn').textContent = isHidden ? 'Show UI' : 'Hide UI';
+  });
+
+  document.getElementById('notes-area').addEventListener('input', (e) => {
+    state.notes = e.target.value;
+  });
+
+  document.getElementById('save-notes-btn').addEventListener('click', () => {
+    exportNotes();
+  });
+
+  document.getElementById('notes-collapse-btn').addEventListener('click', () => {
+    const notesBody = document.querySelector('#notes-panel .notes-body');
+    const btn = document.getElementById('notes-collapse-btn');
+    if (notesBody.style.display === 'none') {
+      notesBody.style.display = 'flex';
+      btn.textContent = '▲';
+    } else {
+      notesBody.style.display = 'none';
+      btn.textContent = '▼';
+    }
+  });
+
+  const instructionList = document.getElementById('instruction-list');
+  const instructionOverlay = document.getElementById('instruction-overlay');
+  const canvasWrapper = document.getElementById('canvas-wrapper');
+  let isInstructionListDragging = false;
+  let instructionListDragOffsetX = 0;
+  let instructionListDragOffsetY = 0;
+  let isInstructionOverlayDragging = false;
+  let instructionOverlayDragOffsetX = 0;
+  let instructionOverlayDragOffsetY = 0;
+
+  instructionList.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const listRect = instructionList.getBoundingClientRect();
+    const wrapperRect = canvasWrapper.getBoundingClientRect();
+
+    instructionList.style.left = `${listRect.left - wrapperRect.left}px`;
+    instructionList.style.top = `${listRect.top - wrapperRect.top}px`;
+    instructionList.style.right = 'auto';
+
+    isInstructionListDragging = true;
+    instructionListDragOffsetX = e.clientX - listRect.left;
+    instructionListDragOffsetY = e.clientY - listRect.top;
+    instructionList.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  instructionOverlay.addEventListener('mousedown', (e) => {
+    if (e.button !== 0) return;
+    const overlayRect = instructionOverlay.getBoundingClientRect();
+    const wrapperRect = canvasWrapper.getBoundingClientRect();
+
+    instructionOverlay.style.left = `${overlayRect.left - wrapperRect.left}px`;
+    instructionOverlay.style.top = `${overlayRect.top - wrapperRect.top}px`;
+    instructionOverlay.style.right = 'auto';
+    instructionOverlay.style.transform = 'none';
+
+    isInstructionOverlayDragging = true;
+    instructionOverlayDragOffsetX = e.clientX - overlayRect.left;
+    instructionOverlayDragOffsetY = e.clientY - overlayRect.top;
+    instructionOverlay.classList.add('dragging');
+    e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+    if (!isInstructionListDragging && !isInstructionOverlayDragging) return;
+
+    const wrapperRect = canvasWrapper.getBoundingClientRect();
+
+    if (isInstructionListDragging) {
+      const listRect = instructionList.getBoundingClientRect();
+      let nextLeft = e.clientX - wrapperRect.left - instructionListDragOffsetX;
+      let nextTop = e.clientY - wrapperRect.top - instructionListDragOffsetY;
+
+      const maxLeft = Math.max(0, wrapperRect.width - listRect.width);
+      const maxTop = Math.max(0, wrapperRect.height - listRect.height);
+      nextLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+      nextTop = Math.max(0, Math.min(maxTop, nextTop));
+
+      instructionList.style.left = `${nextLeft}px`;
+      instructionList.style.top = `${nextTop}px`;
+    }
+
+    if (isInstructionOverlayDragging) {
+      const overlayRect = instructionOverlay.getBoundingClientRect();
+      let nextLeft = e.clientX - wrapperRect.left - instructionOverlayDragOffsetX;
+      let nextTop = e.clientY - wrapperRect.top - instructionOverlayDragOffsetY;
+
+      const maxLeft = Math.max(0, wrapperRect.width - overlayRect.width);
+      const maxTop = Math.max(0, wrapperRect.height - overlayRect.height);
+      nextLeft = Math.max(0, Math.min(maxLeft, nextLeft));
+      nextTop = Math.max(0, Math.min(maxTop, nextTop));
+
+      instructionOverlay.style.left = `${nextLeft}px`;
+      instructionOverlay.style.top = `${nextTop}px`;
+    }
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (isInstructionListDragging) {
+      isInstructionListDragging = false;
+      instructionList.classList.remove('dragging');
+    }
+    if (isInstructionOverlayDragging) {
+      isInstructionOverlayDragging = false;
+      instructionOverlay.classList.remove('dragging');
+    }
+  });
+
 }
 
 function resizeCanvas() {
@@ -816,7 +1132,6 @@ function resizeCanvas() {
   canvas.height = wrapper.clientHeight;
   fitGridToWindow();
   draw();
-  positionInstructionListBelowControls();
 }
 
 function fitGridToWindow() {
@@ -962,36 +1277,88 @@ function isCellColored(row, col) {
 }
 
 function isCellInsideAnyShape(row, col) {
-  for (const shape of state.closedShapes) {
-    if (isCellInsideShape(shape, row, col)) {
+  const isInsideBaseShapeCell = (targetRow, targetCol) => {
+    for (const shape of state.closedShapes) {
+      if (isCellInsidePolygon(targetRow, targetCol, shape)) {
+        return true;
+      }
+    }
+
+    const interiorCells = getInteriorCellsFromLines();
+    if (interiorCells.has(`${targetRow},${targetCol}`)) {
       return true;
     }
 
-    if (isMirroringEnabled() && isCellInsideShape(shape, row, getMirroredColumn(col))) {
-      return true;
-    }
+    return false;
+  };
+
+  if (isInsideBaseShapeCell(row, col)) {
+    return true;
   }
 
-  return false;
+  if (!isMirroringEnabled()) {
+    return false;
+  }
+
+  // Mirror by filled-cell equivalence against the original shape set.
+  return isInsideBaseShapeCell(row, getMirroredColumn(col));
 }
 
-function isCellInsideShape(shape, row, col) {
-  // Multi-sample test reduces diagonal edge holes caused by center-only checks.
-  const sampleOffsets = [
-    { dx: 0.5, dy: 0.5 },
-    { dx: 0.25, dy: 0.25 },
-    { dx: 0.75, dy: 0.25 },
-    { dx: 0.25, dy: 0.75 },
-    { dx: 0.75, dy: 0.75 }
-  ];
+function getInteriorCellsFromLines() {
+  if (state.interiorCacheRevision === state.lineRevision) {
+    return state.interiorCellsFromLines;
+  }
 
-  for (const sample of sampleOffsets) {
-    if (isPointInPolygon({ row: row + sample.dy, col: col + sample.dx }, shape)) {
-      return true;
+  const blocked = Array.from({ length: ROWS }, () => new Uint8Array(COLS));
+  for (const cellKey of state.coloredCells.keys()) {
+    const [rStr, cStr] = cellKey.split(',');
+    const r = Number(rStr);
+    const c = Number(cStr);
+    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
+      blocked[r][c] = 1;
     }
   }
 
-  return false;
+  const visited = Array.from({ length: ROWS }, () => new Uint8Array(COLS));
+  const queue = [];
+  let head = 0;
+
+  const enqueue = (r, c) => {
+    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
+    if (blocked[r][c] || visited[r][c]) return;
+    visited[r][c] = 1;
+    queue.push([r, c]);
+  };
+
+  for (let c = 0; c < COLS; c++) {
+    enqueue(0, c);
+    enqueue(ROWS - 1, c);
+  }
+  for (let r = 0; r < ROWS; r++) {
+    enqueue(r, 0);
+    enqueue(r, COLS - 1);
+  }
+
+  while (head < queue.length) {
+    const [r, c] = queue[head++];
+    enqueue(r - 1, c);
+    enqueue(r + 1, c);
+    enqueue(r, c - 1);
+    enqueue(r, c + 1);
+  }
+
+  const interior = new Set();
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      if (!blocked[r][c] && !visited[r][c]) {
+        interior.add(`${r},${c}`);
+      }
+    }
+  }
+
+  state.interiorCellsFromLines = interior;
+  state.interiorCacheRevision = state.lineRevision;
+  return interior;
 }
 
 function getCanonicalColumn(col) {
@@ -1065,7 +1432,7 @@ function draw() {
       const x = getDisplayXForColumn(col, w);
       const y = row * h;
       const isColored = isCellColored(row, col);
-      const isShapeFill = isCellInsideAnyShape(row, col);
+      const isShapeFill = state.fillEnabled && isCellInsideAnyShape(row, col);
       
       // Check if cell is selected
       if (state.selectedCell && state.selectedCell.row === row && state.selectedCell.col === col) {
@@ -1176,23 +1543,25 @@ function draw() {
   ctx.save();
   ctx.translate(state.offsetX, state.offsetY);
 
-  // Fill closed shapes (dark grey)
-  ctx.fillStyle = '#56606f';
-  ctx.globalAlpha = 0.6;
-  for (let shape of state.closedShapes) {
-    if (shape.length < 3) continue;
-    ctx.beginPath();
-    for (let i = 0; i < shape.length; i++) {
-      const pt = shape[i];
-      const px = getDisplayXForColumn(pt.col, w) + w / 2;
-      const py = pt.row * h + h / 2;
-      if (i === 0) ctx.moveTo(px, py);
-      else ctx.lineTo(px, py);
+  // Fill closed shapes (dark grey) — only when fillEnabled
+  if (state.fillEnabled) {
+    ctx.fillStyle = '#56606f';
+    ctx.globalAlpha = 0.6;
+    for (let shape of state.closedShapes) {
+      if (shape.length < 3) continue;
+      ctx.beginPath();
+      for (let i = 0; i < shape.length; i++) {
+        const pt = shape[i];
+        const px = getDisplayXForColumn(pt.col, w) + w / 2;
+        const py = pt.row * h + h / 2;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
     }
-    ctx.closePath();
-    ctx.fill();
+    ctx.globalAlpha = 1;
   }
-  ctx.globalAlpha = 1;
 
   // Draw stored lines
   ctx.strokeStyle = '#56606f';
@@ -1267,8 +1636,8 @@ function draw() {
     ctx.font = 'bold 12px Arial';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(`${lineInfo.stitches} stitches`, endX + offsetFromEnd + 5, endY - 20);
-    ctx.fillText(`${lineInfo.rows} rows`, endX + offsetFromEnd + 5, endY - 8);
+    ctx.fillText(`${lineInfo.stitches.toFixed(1)} stitches`, endX + offsetFromEnd + 5, endY - 20);
+    ctx.fillText(`${lineInfo.rows.toFixed(1)} rows`, endX + offsetFromEnd + 5, endY - 8);
     ctx.fillText(`${lineInfo.cm.toFixed(2)} cm`, endX + offsetFromEnd + 5, endY + 4);
   }
 
@@ -1317,6 +1686,8 @@ canvas.addEventListener('mousedown', (e) => {
           end: coords
         };
         state.lines.push(lineObj);
+        state.actionHistory.push({ type: 'line' });
+        markLineDataChanged();
 
         const lineCells = getLineCells(state.lineStartCell, coords);
         const lineIndex = state.lines.length - 1;
@@ -1346,24 +1717,31 @@ canvas.addEventListener('mousedown', (e) => {
       }
     }
   } else {
-    // Left click for selection
-    const coords = getGridCoords(e.clientX, e.clientY);
-    if (coords && !state.isSpacePressed) {
-      state.selectedCell = coords;
-      showSelectedInfo(coords);
-      
-      // Show coordinates with bottom-left origin
-      const displayRow = ROWS - coords.row;
-      const hoverCoords = document.getElementById('hover-coords');
-      hoverCoords.textContent = `Row: ${displayRow} | Needle: ${formatNeedleLabel(coords.col)}`;
-      hoverCoords.style.display = 'block';
-      
-      draw();
-    }
+    // Plain left click: start pendingPan to distinguish drag-to-pan from click-to-select
+    pendingPan = {
+      startX: e.clientX,
+      startY: e.clientY,
+      offsetX: state.offsetX,
+      offsetY: state.offsetY,
+      coords: getGridCoords(e.clientX, e.clientY)
+    };
   }
 });
 
 canvas.addEventListener('mousemove', (e) => {
+  if (pendingPan) {
+    const dx = e.clientX - pendingPan.startX;
+    const dy = e.clientY - pendingPan.startY;
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+      state.isDragging = true;
+      state.dragStartX = pendingPan.startX;
+      state.dragStartY = pendingPan.startY;
+      state.dragStartOffsetX = pendingPan.offsetX;
+      state.dragStartOffsetY = pendingPan.offsetY;
+      canvas.style.cursor = 'grabbing';
+      pendingPan = null;
+    }
+  }
   if (state.isDragging) {
     const dx = e.clientX - state.dragStartX;
     const dy = e.clientY - state.dragStartY;
@@ -1375,6 +1753,7 @@ canvas.addEventListener('mousemove', (e) => {
     const coords = getGridCoords(e.clientX, e.clientY);
     if (coords) {
       state.hoveredCell = coords;
+
       if (state.lineStartCell) {
         draw();
       }
@@ -1383,11 +1762,25 @@ canvas.addEventListener('mousemove', (e) => {
 });
 
 canvas.addEventListener('mouseup', () => {
+  if (pendingPan) {
+    const coords = pendingPan.coords;
+    pendingPan = null;
+    if (coords) {
+      state.selectedCell = coords;
+      showSelectedInfo(coords);
+      const displayRow = ROWS - coords.row;
+      const hoverCoords = document.getElementById('hover-coords');
+      hoverCoords.textContent = `Row: ${displayRow} | Needle: ${formatNeedleLabel(coords.col)}`;
+      hoverCoords.style.display = 'block';
+      draw();
+    }
+  }
   state.isDragging = false;
   canvas.style.cursor = state.lineStartCell ? 'crosshair' : 'crosshair';
 });
 
 canvas.addEventListener('mouseleave', () => {
+  pendingPan = null;
   state.isDragging = false;
   if (!state.isSpacePressed) {
     canvas.style.cursor = 'crosshair';
@@ -1400,15 +1793,12 @@ document.addEventListener('keydown', (e) => {
     state.isSpacePressed = true;
     canvas.style.cursor = 'grab';
   } else if (e.key === 'Escape') {
-    // Cancel drawing mode or exit instruction mode
+    // Cancel drawing mode
     if (state.lineStartCell) {
       e.preventDefault();
       state.lineStartCell = null;
       state.currentShapePoints = [];
       draw();
-    } else if (state.instructionSteps.length) {
-      e.preventDefault();
-      stopInstructionDisplay();
     }
   }
 });
@@ -1469,9 +1859,9 @@ document.addEventListener('keydown', (e) => {
     
     draw();
   } else if ((e.metaKey || e.ctrlKey) && e.key === 'z') {
-    // Undo: remove last line
+    // Undo: remove last action (line or design line)
     e.preventDefault();
-    undoLastLine();
+    undoLastAction();
   } else if (e.key === 'ArrowUp') {
     e.preventDefault();
     stepInstruction(state.construction === 'top-down' ? -1 : 1);
@@ -1495,12 +1885,23 @@ function getNearestCellFromCm(xCm, yCm) {
   return { row: ROWS - 1 - rowBottom, col };
 }
 
-function undoLastLine() {
+function undoLastAction() {
+  if (state.actionHistory.length === 0) return;
+  const last = state.actionHistory.pop();
+
+  if (last.type === 'designLine') {
+    state.designLines.pop();
+    draw();
+    return;
+  }
+
+  // type === 'line'
   if (state.lines.length === 0) return;
-  
+
   const lastLineIndex = state.lines.length - 1;
   state.lines.pop();
-  
+  markLineDataChanged();
+
   // Remove colored cells associated with the last line
   const cellsToRemove = [];
   for (let [cellKey, lineIndex] of state.coloredCells.entries()) {
@@ -1508,18 +1909,18 @@ function undoLastLine() {
       cellsToRemove.push(cellKey);
     }
   }
-  
+
   for (let cellKey of cellsToRemove) {
     state.coloredCells.delete(cellKey);
   }
-  
+
   // Rebuild coloredCells map because line indices have shifted
   const newColoredCells = new Map();
   for (let [cellKey, lineIndex] of state.coloredCells.entries()) {
     newColoredCells.set(cellKey, lineIndex);
   }
   state.coloredCells = newColoredCells;
-  
+
   updateLineCount();
   draw();
 }
@@ -1565,46 +1966,32 @@ function updateScaleDisplay() {
     <div class="scale-line">
       In 10 cm: ${rowsPer10cm.toFixed(1)} rows
     </div>
+    <div id="project-name-display">
+      <label for="project-name-live">Project name:</label>
+      <input id="project-name-live" type="text" value="${state.projectName}" oninput="state.projectName=this.value">
+    </div>
   `;
 }
 
 function isPointInPolygon(point, polygon) {
-  const EPS = 1e-9;
+  // Treat points on polygon edges as inside to avoid small gaps on triangle edges.
+  const EPSILON = 1e-9;
 
-  function isPointOnSegment(px, py, x1, y1, x2, y2) {
-    const squaredLen = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-
-    // Degenerate edge: only treat as on-segment when point is at that vertex.
-    if (squaredLen <= EPS) {
-      const dx = px - x1;
-      const dy = py - y1;
-      return (dx * dx + dy * dy) <= EPS;
-    }
-
+  const isPointOnSegment = (px, py, x1, y1, x2, y2) => {
     const cross = (px - x1) * (y2 - y1) - (py - y1) * (x2 - x1);
-    if (Math.abs(cross) > EPS) {
+    if (Math.abs(cross) > EPSILON) {
       return false;
     }
+    const dot = (px - x1) * (px - x2) + (py - y1) * (py - y2);
+    return dot <= EPSILON;
+  };
 
-    const dot = (px - x1) * (x2 - x1) + (py - y1) * (y2 - y1);
-    if (dot < -EPS) {
-      return false;
-    }
-
-    if (dot - squaredLen > EPS) {
-      return false;
-    }
-
-    return true;
-  }
-
-  // Ray casting algorithm to check if a point is inside a polygon
+  // Ray casting algorithm to check if a point is inside a polygon.
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
     const xi = polygon[i].col, yi = polygon[i].row;
     const xj = polygon[j].col, yj = polygon[j].row;
 
-    // Include boundary points as inside to avoid holes along triangle edges.
     if (isPointOnSegment(point.col, point.row, xi, yi, xj, yj)) {
       return true;
     }
@@ -1614,6 +2001,24 @@ function isPointInPolygon(point, polygon) {
     if (intersect) inside = !inside;
   }
   return inside;
+}
+
+function isCellInsidePolygon(row, col, polygon) {
+  const samples = [
+    { row: row + 0.5, col: col + 0.5 },
+    { row: row + 0.2, col: col + 0.2 },
+    { row: row + 0.2, col: col + 0.8 },
+    { row: row + 0.8, col: col + 0.2 },
+    { row: row + 0.8, col: col + 0.8 }
+  ];
+
+  for (const sample of samples) {
+    if (isPointInPolygon(sample, polygon)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function countStitchesInRow(row) {
@@ -1632,11 +2037,12 @@ function isBaseCellColored(row, col) {
 
 function isBaseCellInsideAnyShape(row, col) {
   for (const shape of state.closedShapes) {
-    if (isCellInsideShape(shape, row, col)) {
+    if (isCellInsidePolygon(row, col, shape)) {
       return true;
     }
   }
-  return false;
+
+  return getInteriorCellsFromLines().has(`${row},${col}`);
 }
 
 function countInstructionStitchesInRow(row) {
@@ -1764,27 +2170,13 @@ function stopInstructionDisplay() {
   state.instructionSteps = [];
   state.instructionIndex = -1;
   state.highlightedRow = null;
-  const list = document.getElementById('instruction-list');
-  list.style.display = 'none';
+  document.getElementById('instruction-list').style.display = 'none';
   updateInstructionOverlay();
   draw();
 }
 
-function positionInstructionListBelowControls() {
-  const wrapper = document.getElementById('canvas-wrapper');
-  const controls = document.getElementById('instruction-controls');
-  const list = document.getElementById('instruction-list');
-
-  const top = controls.offsetTop + controls.offsetHeight + 10;
-  const availableHeight = wrapper.clientHeight - top - 20;
-
-  list.style.top = `${Math.max(10, top)}px`;
-  list.style.maxHeight = `${Math.max(120, availableHeight)}px`;
-}
-
 function renderInstructionList() {
   const list = document.getElementById('instruction-list');
-  positionInstructionListBelowControls();
   list.innerHTML = '';
   list.style.display = state.instructionSteps.length ? 'block' : 'none';
   let activeItem = null;
@@ -1820,7 +2212,7 @@ function exportInstructions() {
   const instructions = generateKnittingInstructions(construction);
   const element = document.createElement('a');
   element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(instructions));
-  element.setAttribute('download', 'knitting_instructions.txt');
+  element.setAttribute('download', state.projectName + '_instructions.txt');
   element.style.display = 'none';
   document.body.appendChild(element);
   element.click();
@@ -1839,12 +2231,28 @@ function exportDrawing() {
     viewMode: state.viewMode,
     cmPer30Stitches: state.cmPer30Stitches,
     cmPer30Rows: state.cmPer30Rows,
-    cellAspect: state.cellAspect
+    cellAspect: state.cellAspect,
+    projectName: state.projectName,
+    notes: state.notes
   };
   const dataStr = JSON.stringify(drawingData, null, 2);
   const element = document.createElement('a');
   element.setAttribute('href', 'data:text/json;charset=utf-8,' + encodeURIComponent(dataStr));
-  element.setAttribute('download', 'knitting_drawing.json');
+  element.setAttribute('download', state.projectName + '_drawing.json');
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+function exportNotes() {
+  if (!state.notes.trim()) {
+    alert('No notes to export.');
+    return;
+  }
+  const element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(state.notes));
+  element.setAttribute('download', state.projectName + '_notes.txt');
   element.style.display = 'none';
   document.body.appendChild(element);
   element.click();
@@ -1900,7 +2308,7 @@ function exportPoints() {
 
   const element = document.createElement('a');
   element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(content));
-  element.setAttribute('download', 'knitting_points.txt');
+  element.setAttribute('download', state.projectName + '_points.txt');
   element.style.display = 'none';
   document.body.appendChild(element);
   element.click();
@@ -1925,6 +2333,7 @@ function importDrawing(file) {
       // Set state
       state.lines = drawingData.lines || [];
       state.coloredCells = new Map(Object.entries(drawingData.coloredCells || {}));
+      markLineDataChanged();
       state.closedShapes = drawingData.closedShapes || [];
       state.designLines = drawingData.designLines || [];
       state.construction = drawingData.construction || 'top-down';
@@ -1932,9 +2341,13 @@ function importDrawing(file) {
       state.cmPer30Stitches = drawingData.cmPer30Stitches || 10;
       state.cmPer30Rows = drawingData.cmPer30Rows || 10;
       state.cellAspect = drawingData.cellAspect || 1;
+      state.projectName = drawingData.projectName || 'knitting';
+      state.notes = drawingData.notes || '';
+      state.actionHistory = [];
       // Update UI
       document.getElementById('construction-select').value = state.construction;
       document.getElementById('full-mode-toggle').checked = state.viewMode === 'full';
+      document.getElementById('notes-area').value = state.notes;
       updateExportModeNote();
       updateScaleDisplay();
       // Clear instructions
@@ -1985,12 +2398,21 @@ function importPoints(file) {
 
 function fillShape(shapePoints) {
   if (!shapePoints || !shapePoints.length) return;
+  // Ensure shape is closed by re-adding the first point at the end for consistency
+  if (shapePoints.length > 1) {
+    const first = shapePoints[0];
+    const last = shapePoints[shapePoints.length - 1];
+    if (first.row !== last.row || first.col !== last.col) {
+      shapePoints.push({ row: first.row, col: first.col });
+    }
+  }
   state.closedShapes.push(shapePoints);
 }
 
 function addLine(start, end) {
   const lineObj = { start, end };
   state.lines.push(lineObj);
+  markLineDataChanged();
   const lineCells = getLineCells(start, end);
   const lineIndex = state.lines.length - 1;
   for (let cell of lineCells) {
@@ -2004,7 +2426,7 @@ function calculateLineLength(startCell, endCell) {
   const rowDiff = Math.abs(endCell.row - startCell.row);
   const rectWidthCm = state.cmPer30Stitches / 30;
   const rectHeightCm = state.cmPer30Rows / 30;
-  const stitches = colDiff;
+  const stitches = colDiff + 1;
   const rows = rowDiff + 1;
   const cmX = colDiff * rectWidthCm;
   const cmY = rowDiff * rectHeightCm;
