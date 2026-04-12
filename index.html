@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Knitting Grid</title>
+<title>Le Tricotron (knitting grid)</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   
@@ -24,6 +24,7 @@
     padding: 15px 20px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     font-size: 14px;
+    position: relative;
   }
   
   #stats {
@@ -32,10 +33,53 @@
     align-items: center;
   }
   
+  #title-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-right: auto;
+  }
+
   #title {
     font-size: 18px;
     font-weight: 600;
-    margin-right: auto;
+  }
+
+  #title-help-btn {
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgba(255,255,255,0.5);
+    border-radius: 4px;
+    background: rgba(255,255,255,0.12);
+    color: white;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+  }
+
+  #title-help-btn:hover {
+    background: rgba(255,255,255,0.24);
+  }
+
+  #title-help-popup {
+    position: absolute;
+    top: 52px;
+    left: 20px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0,0,0,0.85);
+    color: white;
+    font-size: 12px;
+    z-index: 25;
+  }
+
+  #title-help-popup.hidden {
+    display: none;
   }
   
   
@@ -52,6 +96,27 @@
   .stat-value {
     font-weight: 600;
     font-size: 16px;
+  }
+
+  .color-control {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .color-control label {
+    opacity: 0.8;
+    font-size: 12px;
+  }
+
+  .color-control input[type="color"] {
+    width: 28px;
+    height: 22px;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-radius: 4px;
+    padding: 0;
+    background: transparent;
+    cursor: pointer;
   }
   
   #canvas-wrapper {
@@ -139,8 +204,6 @@
     top: 20px;
     right: 340px;
     width: 250px;
-    max-height: 220px;
-    overflow-y: auto;
     background: rgba(255,255,255,0.95);
     padding: 8px;
     border-radius: 6px;
@@ -153,6 +216,38 @@
   #instruction-list.dragging {
     cursor: grabbing;
     user-select: none;
+  }
+
+  #instruction-list .instruction-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  #instruction-list .instruction-list-body {
+    max-height: 190px;
+    overflow-y: auto;
+  }
+
+  #instruction-list .instruction-list-body.hidden {
+    display: none;
+  }
+
+  #instruction-list .instruction-list-collapse {
+    background: transparent;
+    color: #607080;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  #instruction-list .instruction-list-collapse:hover {
+    color: #2c3e50;
   }
 
   #instruction-list .instruction-item {
@@ -621,13 +716,25 @@
 <div id="container">
   <div id="header">
     <div id="stats">
-    <div id="title">Knitting Grid</div>
+    <div id="title-wrap">
+      <div id="title">Le Tricotron (knitting grid)</div>
+      <button id="title-help-btn" title="Help">?</button>
+    </div>
     <div class="stat-item">
         <span class="stat-label">Zoom:</span>
         <span class="stat-value" id="zoom-level">100%</span>
       </div>
+      <div class="color-control">
+        <label for="line-color-input">Line</label>
+        <input type="color" id="line-color-input" value="#000000" title="Line color">
+      </div>
+      <div class="color-control">
+        <label for="fill-color-input">Fill</label>
+        <input type="color" id="fill-color-input" value="#56606f" title="Fill color">
+      </div>
       <button id="toggle-ui-btn" title="Toggle UI panels">Hide UI</button>
     </div>
+    <div id="title-help-popup" class="hidden">Source code and README at https://github.com/ana571/ana571.github.io</div>
   </div>
   <div id="canvas-wrapper">
     <canvas id="knitCanvas"></canvas>
@@ -664,6 +771,14 @@
         <input type="checkbox" id="fill-shapes-checkbox" checked style="width:auto;margin:0;accent-color:#2ecc71;">
         <span>Fill shapes</span>
       </label>
+      <label style="display:flex;align-items:center;gap:8px;padding-top:2px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="show-lines-checkbox" checked style="width:auto;margin:0;accent-color:#2ecc71;">
+        <span>Show lines</span>
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;padding-top:2px;font-size:12px;cursor:pointer;">
+        <input type="checkbox" id="mirror-future-checkbox" checked style="width:auto;margin:0;accent-color:#2ecc71;">
+        <span>Mirror future drawing</span>
+      </label>
       <div id="instruction-step">
         <button id="step-prev">▲</button>
         <button id="step-next">▼</button>
@@ -683,7 +798,7 @@
 
     <div id="instruction-list" style="display:none;"></div>
     <div id="instruction-overlay" class="hidden">
-      <div class="overlay-label">Current Row</div>
+      <div class="overlay-label">Machine row counter</div>
       <div class="overlay-row" id="instruction-overlay-row">-</div>
       <div class="overlay-text" id="instruction-overlay-text"></div>
     </div>
@@ -753,11 +868,11 @@
       </div>
       <div class="form-group">
         <label for="stitches30-input">30 stitches = (cm):</label>
-        <input type="number" id="stitches30-input" min="0.1" step="0.1">
+        <input type="number" id="stitches30-input" min="0.1" step="0.1" value="30">
       </div>
       <div class="form-group">
         <label for="rows30-input">30 rows = (cm):</label>
-        <input type="number" id="rows30-input" min="0.1" step="0.1">
+        <input type="number" id="rows30-input" min="0.1" step="0.1" value="30">
       </div>
       <div class="button-group">
         <button id="start-button">Start</button>
@@ -803,15 +918,20 @@ let state = {
   instructionSteps: [],
   instructionIndex: -1,
   highlightedRow: null,
+  instructionListCollapsed: false,
   viewMode: 'half',
   mode: 'normal',
   actionHistory: [],
   fillEnabled: true,
+  showLines: true,
+  mirrorFutureDrawing: true,
+  lineColor: '#000000',
+  fillColor: '#56606f',
   projectName: 'knitting',
   notes: '',
   lineRevision: 0,
   interiorCacheRevision: -1,
-  interiorCellsFromLines: new Set()
+  interiorCellsFromLines: new Map()
 };
 
 const DRAG_THRESHOLD = 5;
@@ -829,8 +949,16 @@ function initializeGrid() {
   const setupModal = document.getElementById('setup-modal');
   const addCmLineButton = document.getElementById('add-cm-line');
   const fullModeToggle = document.getElementById('full-mode-toggle');
+  const showLinesCheckbox = document.getElementById('show-lines-checkbox');
+  const mirrorFutureCheckbox = document.getElementById('mirror-future-checkbox');
+  const lineColorInput = document.getElementById('line-color-input');
+  const fillColorInput = document.getElementById('fill-color-input');
 
   fullModeToggle.checked = state.viewMode === 'full';
+  showLinesCheckbox.checked = state.showLines;
+  mirrorFutureCheckbox.checked = state.mirrorFutureDrawing;
+  lineColorInput.value = state.lineColor;
+  fillColorInput.value = state.fillColor;
   updateExportModeNote();
 
   startButton.addEventListener('click', () => {
@@ -911,7 +1039,13 @@ function initializeGrid() {
 
     if (!startCell || !endCell) return;
 
-    state.lines.push({ start: startCell, end: endCell });
+    state.lines.push({
+      start: startCell,
+      end: endCell,
+      color: state.lineColor,
+      mirrorAtCreation: state.mirrorFutureDrawing,
+      mirrorBaked: false
+    });
     state.actionHistory.push({ type: 'line' });
     markLineDataChanged();
 
@@ -1011,9 +1145,48 @@ function initializeGrid() {
     draw();
   });
 
+  showLinesCheckbox.addEventListener('change', (e) => {
+    state.showLines = e.target.checked;
+    draw();
+  });
+
+  mirrorFutureCheckbox.addEventListener('change', (e) => {
+    const enableMirrorForFuture = e.target.checked;
+    if (!enableMirrorForFuture && state.mirrorFutureDrawing) {
+      bakeExistingMirroredContent();
+    }
+    state.mirrorFutureDrawing = enableMirrorForFuture;
+    updateExportModeNote();
+    draw();
+  });
+
+  lineColorInput.addEventListener('input', (e) => {
+    state.lineColor = e.target.value;
+    draw();
+  });
+
+  fillColorInput.addEventListener('input', (e) => {
+    state.fillColor = e.target.value;
+    draw();
+  });
+
   document.getElementById('toggle-ui-btn').addEventListener('click', () => {
     const isHidden = document.body.classList.toggle('ui-hidden');
     document.getElementById('toggle-ui-btn').textContent = isHidden ? 'Show UI' : 'Hide UI';
+  });
+
+  const titleHelpBtn = document.getElementById('title-help-btn');
+  const titleHelpPopup = document.getElementById('title-help-popup');
+
+  titleHelpBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    titleHelpPopup.classList.toggle('hidden');
+  });
+
+  document.addEventListener('click', (e) => {
+    if (e.target !== titleHelpBtn && !titleHelpPopup.contains(e.target)) {
+      titleHelpPopup.classList.add('hidden');
+    }
   });
 
   document.getElementById('notes-area').addEventListener('input', (e) => {
@@ -1048,6 +1221,7 @@ function initializeGrid() {
 
   instructionList.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
+    if (e.target.closest('.instruction-list-collapse')) return;
     const listRect = instructionList.getBoundingClientRect();
     const wrapperRect = canvasWrapper.getBoundingClientRect();
 
@@ -1231,13 +1405,13 @@ function updateExportModeNote() {
     return;
   }
 
-  exportModeNote.textContent = isMirroringEnabled()
-    ? 'Point export mode: full symmetry (right side and mirrored left side)'
+  exportModeNote.textContent = state.viewMode === 'full'
+    ? 'Point export mode: full'
     : 'Point export mode: right half only';
 }
 
 function isMirroringEnabled() {
-  return state.viewMode === 'full';
+  return state.viewMode === 'full' && state.mirrorFutureDrawing;
 }
 
 function getMirroredColumn(col) {
@@ -1252,6 +1426,125 @@ function arePointsEqual(first, second) {
   return first.row === second.row && first.col === second.col;
 }
 
+function getShapePoints(shape) {
+  if (Array.isArray(shape)) {
+    return shape;
+  }
+  return shape && Array.isArray(shape.points) ? shape.points : [];
+}
+
+function getShapeFillColor(shape) {
+  if (shape && !Array.isArray(shape) && shape.fillColor) {
+    return shape.fillColor;
+  }
+  return state.fillColor;
+}
+
+function colorWithAlpha(color, alpha) {
+  if (typeof color !== 'string') {
+    return color;
+  }
+
+  const hex = color.trim();
+  if (!hex.startsWith('#')) {
+    return color;
+  }
+
+  let r;
+  let g;
+  let b;
+
+  if (hex.length === 4) {
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else if (hex.length === 7) {
+    r = parseInt(hex.slice(1, 3), 16);
+    g = parseInt(hex.slice(3, 5), 16);
+    b = parseInt(hex.slice(5, 7), 16);
+  } else {
+    return color;
+  }
+
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+function bakeExistingMirroredContent() {
+  const { rightStart } = getNeedleLayout();
+
+  if (state.viewMode !== 'full') {
+    return;
+  }
+
+  const linesToBake = new Set();
+  for (let index = 0; index < state.lines.length; index++) {
+    const line = state.lines[index];
+    if (line && line.mirrorAtCreation && !line.mirrorBaked) {
+      linesToBake.add(index);
+    }
+  }
+
+  const existingCells = Array.from(state.coloredCells.entries());
+  for (const [key, lineIndex] of existingCells) {
+    if (!linesToBake.has(lineIndex)) {
+      continue;
+    }
+
+    const [rowStr, colStr] = key.split(',');
+    const row = Number(rowStr);
+    const col = Number(colStr);
+    if (col < rightStart) {
+      continue;
+    }
+
+    const mirroredKey = `${row},${getMirroredColumn(col)}`;
+    if (!state.coloredCells.has(mirroredKey)) {
+      state.coloredCells.set(mirroredKey, lineIndex);
+    }
+  }
+
+  for (const index of linesToBake) {
+    state.lines[index].mirrorBaked = true;
+  }
+
+  const mirroredShapesToAdd = [];
+  for (const shapeObj of state.closedShapes) {
+    if (shapeObj && !Array.isArray(shapeObj) && shapeObj.mirrorBaked) {
+      continue;
+    }
+
+    if (shapeObj && !Array.isArray(shapeObj) && !shapeObj.mirrorAtCreation) {
+      shapeObj.mirrorBaked = true;
+      continue;
+    }
+
+    const points = getShapePoints(shapeObj);
+    if (!isMirroredShapeDistinct(points)) {
+      if (shapeObj && !Array.isArray(shapeObj)) {
+        shapeObj.mirrorBaked = true;
+      }
+      continue;
+    }
+
+    mirroredShapesToAdd.push({
+      points: points.map((point) => getMirroredPoint(point)),
+      fillColor: getShapeFillColor(shapeObj),
+      mirrorAtCreation: false,
+      mirrorBaked: true
+    });
+
+    if (shapeObj && !Array.isArray(shapeObj)) {
+      shapeObj.mirrorBaked = true;
+    }
+  }
+
+  if (mirroredShapesToAdd.length > 0) {
+    state.closedShapes.push(...mirroredShapesToAdd);
+  }
+
+  markLineDataChanged();
+}
+
 function isMirroredLineDistinct(line) {
   const mirroredStart = getMirroredPoint(line.start);
   const mirroredEnd = getMirroredPoint(line.end);
@@ -1259,7 +1552,8 @@ function isMirroredLineDistinct(line) {
 }
 
 function isMirroredShapeDistinct(shape) {
-  return shape.some((point) => point.col !== getMirroredColumn(point.col));
+  const points = getShapePoints(shape);
+  return points.some((point) => point.col !== getMirroredColumn(point.col));
 }
 
 function isCellColored(row, col) {
@@ -1276,32 +1570,63 @@ function isCellColored(row, col) {
   return state.coloredCells.has(mirroredKey);
 }
 
-function isCellInsideAnyShape(row, col) {
-  const isInsideBaseShapeCell = (targetRow, targetCol) => {
-    for (const shape of state.closedShapes) {
-      if (isCellInsidePolygon(targetRow, targetCol, shape)) {
-        return true;
-      }
-    }
-
-    const interiorCells = getInteriorCellsFromLines();
-    if (interiorCells.has(`${targetRow},${targetCol}`)) {
-      return true;
-    }
-
-    return false;
-  };
-
-  if (isInsideBaseShapeCell(row, col)) {
-    return true;
+function getCellLineColor(row, col) {
+  const directKey = `${row},${col}`;
+  if (state.coloredCells.has(directKey)) {
+    const lineIndex = state.coloredCells.get(directKey);
+    const line = state.lines[lineIndex];
+    return (line && line.color) || state.lineColor;
   }
 
   if (!isMirroringEnabled()) {
-    return false;
+    return null;
   }
 
-  // Mirror by filled-cell equivalence against the original shape set.
-  return isInsideBaseShapeCell(row, getMirroredColumn(col));
+  const mirroredKey = `${row},${getMirroredColumn(col)}`;
+  if (state.coloredCells.has(mirroredKey)) {
+    const lineIndex = state.coloredCells.get(mirroredKey);
+    const line = state.lines[lineIndex];
+    if (!line || line.mirrorAtCreation === false) {
+      return null;
+    }
+    return (line && line.color) || state.lineColor;
+  }
+
+  return null;
+}
+
+function getCellFillColor(row, col) {
+  const interiorCells = getInteriorCellsFromLines();
+  const directKey = `${row},${col}`;
+  if (interiorCells.has(directKey)) {
+    const meta = interiorCells.get(directKey);
+    if (meta && typeof meta === 'object') {
+      return meta.color || state.fillColor;
+    }
+    return meta || state.fillColor;
+  }
+
+  if (!isMirroringEnabled()) {
+    return null;
+  }
+
+  const mirroredKey = `${row},${getMirroredColumn(col)}`;
+  if (interiorCells.has(mirroredKey)) {
+    const meta = interiorCells.get(mirroredKey);
+    if (meta && typeof meta === 'object') {
+      if (meta.mirrorAtCreation === false) {
+        return null;
+      }
+      return meta.color || state.fillColor;
+    }
+    return meta || state.fillColor;
+  }
+
+  return null;
+}
+
+function isCellInsideAnyShape(row, col) {
+  return getCellFillColor(row, col) !== null;
 }
 
 function getInteriorCellsFromLines() {
@@ -1309,49 +1634,113 @@ function getInteriorCellsFromLines() {
     return state.interiorCellsFromLines;
   }
 
-  const blocked = Array.from({ length: ROWS }, () => new Uint8Array(COLS));
-  for (const cellKey of state.coloredCells.keys()) {
-    const [rStr, cStr] = cellKey.split(',');
-    const r = Number(rStr);
-    const c = Number(cStr);
-    if (r >= 0 && r < ROWS && c >= 0 && c < COLS) {
-      blocked[r][c] = 1;
+  const interior = new Map();
+
+  // For each closed shape, fill interior in discrete grid space bounded by rasterized edges.
+  for (const shapeObj of state.closedShapes) {
+    if (shapeObj && !Array.isArray(shapeObj) && Array.isArray(shapeObj.interiorCellKeys)) {
+      const shapeFillColor = getShapeFillColor(shapeObj);
+      const mirrorAtCreation = shapeObj.mirrorAtCreation !== false;
+
+      for (const key of shapeObj.interiorCellKeys) {
+        if (!state.coloredCells.has(key)) {
+          interior.set(key, {
+            color: shapeFillColor,
+            mirrorAtCreation
+          });
+        }
+      }
+      continue;
     }
-  }
 
-  const visited = Array.from({ length: ROWS }, () => new Uint8Array(COLS));
-  const queue = [];
-  let head = 0;
+    const shape = getShapePoints(shapeObj);
+    const shapeFillColor = getShapeFillColor(shapeObj);
+    if (shape.length < 3) continue;
 
-  const enqueue = (r, c) => {
-    if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return;
-    if (blocked[r][c] || visited[r][c]) return;
-    visited[r][c] = 1;
-    queue.push([r, c]);
-  };
+    const boundarySet = new Set();
+    let minRow = ROWS;
+    let maxRow = -1;
+    let minCol = COLS;
+    let maxCol = -1;
 
-  for (let c = 0; c < COLS; c++) {
-    enqueue(0, c);
-    enqueue(ROWS - 1, c);
-  }
-  for (let r = 0; r < ROWS; r++) {
-    enqueue(r, 0);
-    enqueue(r, COLS - 1);
-  }
+    // Trace polygon edges to mark boundary cells explicitly.
+    for (let i = 0; i < shape.length; i++) {
+      const start = shape[i];
+      const end = shape[(i + 1) % shape.length];
+      const edgeCells = getLineCells(start, end);
+      for (const cell of edgeCells) {
+        if (cell.row < 0 || cell.row >= ROWS || cell.col < 0 || cell.col >= COLS) {
+          continue;
+        }
 
-  while (head < queue.length) {
-    const [r, c] = queue[head++];
-    enqueue(r - 1, c);
-    enqueue(r + 1, c);
-    enqueue(r, c - 1);
-    enqueue(r, c + 1);
-  }
+        boundarySet.add(`${cell.row},${cell.col}`);
+        if (cell.row < minRow) minRow = cell.row;
+        if (cell.row > maxRow) maxRow = cell.row;
+        if (cell.col < minCol) minCol = cell.col;
+        if (cell.col > maxCol) maxCol = cell.col;
+      }
+    }
 
-  const interior = new Set();
-  for (let r = 0; r < ROWS; r++) {
-    for (let c = 0; c < COLS; c++) {
-      if (!blocked[r][c] && !visited[r][c]) {
-        interior.add(`${r},${c}`);
+    if (boundarySet.size === 0) {
+      continue;
+    }
+
+    // Work in a small padded bounding box around this shape.
+    const startRow = Math.max(0, minRow - 1);
+    const endRow = Math.min(ROWS - 1, maxRow + 1);
+    const startCol = Math.max(0, minCol - 1);
+    const endCol = Math.min(COLS - 1, maxCol + 1);
+
+    const visited = new Set();
+    const queue = [];
+    let head = 0;
+
+    const pushExterior = (row, col) => {
+      if (row < startRow || row > endRow || col < startCol || col > endCol) {
+        return;
+      }
+
+      const key = `${row},${col}`;
+      if (visited.has(key) || boundarySet.has(key)) {
+        return;
+      }
+
+      visited.add(key);
+      queue.push([row, col]);
+    };
+
+    // Seed flood-fill from the bounding box border (known exterior).
+    for (let col = startCol; col <= endCol; col++) {
+      pushExterior(startRow, col);
+      pushExterior(endRow, col);
+    }
+    for (let row = startRow; row <= endRow; row++) {
+      pushExterior(row, startCol);
+      pushExterior(row, endCol);
+    }
+
+    // 4-neighbor flood-fill in discrete grid space.
+    while (head < queue.length) {
+      const [row, col] = queue[head++];
+      pushExterior(row - 1, col);
+      pushExterior(row + 1, col);
+      pushExterior(row, col - 1);
+      pushExterior(row, col + 1);
+    }
+
+    // Any non-boundary and non-exterior cell in the box is interior.
+    for (let row = startRow; row <= endRow; row++) {
+      for (let col = startCol; col <= endCol; col++) {
+        const key = `${row},${col}`;
+        if (!boundarySet.has(key) && !visited.has(key) && !state.coloredCells.has(key)) {
+          const mirrorAtCreation = (shapeObj && !Array.isArray(shapeObj))
+            ? shapeObj.mirrorAtCreation !== false
+            : true;
+          interior.set(key, {
+            color: shapeFillColor,
+            mirrorAtCreation
+          });
+        }
       }
     }
   }
@@ -1374,6 +1763,150 @@ function getCanonicalCoords(coords) {
     return null;
   }
   return { row: coords.row, col: getCanonicalColumn(coords.col) };
+}
+
+function getCellDimensionsCm() {
+  return {
+    width: state.cmPer30Stitches / 30,
+    height: state.cmPer30Rows / 30
+  };
+}
+
+function getContinuousGridCoordsFromCm(xCm, yCm) {
+  const { width, height } = getCellDimensionsCm();
+  return {
+    x: (xCm / width) + getNeedleLayout().rightStart,
+    y: ROWS - (yCm / height)
+  };
+}
+
+function getDisplayPointFromCm(xCm, yCm, cellWidth, cellHeight) {
+  const { start } = getVisibleColumnRange();
+  const point = getContinuousGridCoordsFromCm(xCm, yCm);
+  return {
+    x: (point.x - start) * cellWidth,
+    y: point.y * cellHeight
+  };
+}
+
+function getTouchedCellIndices(position, max) {
+  const epsilon = 1e-9;
+  const rounded = Math.round(position);
+  const indices = [];
+
+  if (Math.abs(position - rounded) < epsilon) {
+    indices.push(rounded - 1, rounded);
+  } else {
+    indices.push(Math.floor(position));
+  }
+
+  return Array.from(new Set(indices.filter((index) => index >= 0 && index < max)));
+}
+
+function getCellKey(row, col) {
+  return `${row},${col}`;
+}
+
+function getLineCellsFromCmSegment(startCm, endCm) {
+  const start = getContinuousGridCoordsFromCm(startCm.x, startCm.y);
+  const end = getContinuousGridCoordsFromCm(endCm.x, endCm.y);
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const steps = Math.max(1, Math.ceil(Math.max(Math.abs(dx), Math.abs(dy)) * 4));
+  const seen = new Set();
+  const cells = [];
+
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps;
+    const x = start.x + (dx * t);
+    const y = start.y + (dy * t);
+    const cols = getTouchedCellIndices(x, COLS);
+    const rows = getTouchedCellIndices(y, ROWS);
+
+    for (const row of rows) {
+      for (const col of cols) {
+        const key = getCellKey(row, col);
+        if (seen.has(key)) {
+          continue;
+        }
+        seen.add(key);
+        cells.push({ row, col });
+      }
+    }
+  }
+
+  return cells;
+}
+
+function isPointInsidePolygonCm(point, polygon) {
+  let inside = false;
+
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+
+    const intersects = ((yi > point.y) !== (yj > point.y))
+      && (point.x < ((xj - xi) * (point.y - yi)) / ((yj - yi) || Number.EPSILON) + xi);
+
+    if (intersects) {
+      inside = !inside;
+    }
+  }
+
+  return inside;
+}
+
+function getCellCenterCm(row, col) {
+  const { width, height } = getCellDimensionsCm();
+  return {
+    x: ((col + 0.5) - getNeedleLayout().rightStart) * width,
+    y: (ROWS - row - 0.5) * height
+  };
+}
+
+function getImportedShapeInteriorCellKeys(cmPoints) {
+  const gridPoints = cmPoints.map((point) => getContinuousGridCoordsFromCm(point.x, point.y));
+  const minRow = Math.max(0, Math.floor(Math.min(...gridPoints.map((point) => point.y))));
+  const maxRow = Math.min(ROWS - 1, Math.ceil(Math.max(...gridPoints.map((point) => point.y))) - 1);
+  const minCol = Math.max(0, Math.floor(Math.min(...gridPoints.map((point) => point.x))));
+  const maxCol = Math.min(COLS - 1, Math.ceil(Math.max(...gridPoints.map((point) => point.x))) - 1);
+  const cellKeys = [];
+
+  for (let row = minRow; row <= maxRow; row++) {
+    for (let col = minCol; col <= maxCol; col++) {
+      if (isPointInsidePolygonCm(getCellCenterCm(row, col), cmPoints)) {
+        cellKeys.push(getCellKey(row, col));
+      }
+    }
+  }
+
+  return cellKeys;
+}
+
+function getMirroredCmPoint(point) {
+  return { x: -point.x, y: point.y };
+}
+
+function importShapeFromCmPoints(cmPoints, fillColor = state.fillColor) {
+  if (!cmPoints || cmPoints.length < 3) {
+    return;
+  }
+
+  const snappedPoints = cmPoints.map((point) => cmToGrid(point.x, point.y));
+  fillShape(snappedPoints, fillColor, {
+    cmPoints,
+    interiorCellKeys: getImportedShapeInteriorCellKeys(cmPoints)
+  });
+}
+
+function importLineFromCmPoints(startCm, endCm, lineColor = state.lineColor) {
+  addLine(cmToGrid(startCm.x, startCm.y), cmToGrid(endCm.x, endCm.y), lineColor, {
+    cmStart: startCm,
+    cmEnd: endCm,
+    cells: getLineCellsFromCmSegment(startCm, endCm)
+  });
 }
 
 function getLineCells(start, end) {
@@ -1431,8 +1964,8 @@ function draw() {
     for (let col = visibleRange.start; col <= visibleRange.end; col++) {
       const x = getDisplayXForColumn(col, w);
       const y = row * h;
-      const isColored = isCellColored(row, col);
-      const isShapeFill = state.fillEnabled && isCellInsideAnyShape(row, col);
+      const lineCellColor = getCellLineColor(row, col);
+      const fillCellColor = state.fillEnabled ? getCellFillColor(row, col) : null;
       
       // Check if cell is selected
       if (state.selectedCell && state.selectedCell.row === row && state.selectedCell.col === col) {
@@ -1441,10 +1974,18 @@ function draw() {
         ctx.strokeStyle = '#2c3e50';
         ctx.lineWidth = 1;
         ctx.strokeRect(x, y, w, h);
-      } else if (isColored || isShapeFill) {
-        ctx.fillStyle = '#56606f';
+      } else if (lineCellColor) {
+        // Line cells
+        ctx.fillStyle = lineCellColor;
         ctx.fillRect(x, y, w, h);
-        ctx.strokeStyle = '#373d46';
+        ctx.strokeStyle = lineCellColor;
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x, y, w, h);
+      } else if (fillCellColor) {
+        // Interior fill cells
+        ctx.fillStyle = colorWithAlpha(fillCellColor, 0.45);
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = colorWithAlpha(fillCellColor, 0.55);
         ctx.lineWidth = 0.5;
         ctx.strokeRect(x, y, w, h);
       } else if (state.hoveredCell && state.hoveredCell.row === row && state.hoveredCell.col === col) {
@@ -1545,33 +2086,45 @@ function draw() {
 
   // Fill closed shapes (dark grey) — only when fillEnabled
   if (state.fillEnabled) {
-    ctx.fillStyle = '#56606f';
-    ctx.globalAlpha = 0.6;
-    for (let shape of state.closedShapes) {
+    ctx.globalAlpha = 0.15;
+    for (let shapeObj of state.closedShapes) {
+      const shape = getShapePoints(shapeObj);
       if (shape.length < 3) continue;
-      ctx.beginPath();
-      for (let i = 0; i < shape.length; i++) {
-        const pt = shape[i];
-        const px = getDisplayXForColumn(pt.col, w) + w / 2;
-        const py = pt.row * h + h / 2;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
+      ctx.fillStyle = getShapeFillColor(shapeObj);
+
+      const drawShapeOverlay = (points) => {
+        ctx.beginPath();
+        for (let i = 0; i < points.length; i++) {
+          const pt = points[i];
+          const px = getDisplayXForColumn(pt.col, w) + w / 2;
+          const py = pt.row * h + h / 2;
+          if (i === 0) ctx.moveTo(px, py);
+          else ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+        ctx.fill();
+      };
+
+      drawShapeOverlay(shape);
+
+      if (isMirroringEnabled() && shapeObj.mirrorAtCreation !== false && isMirroredShapeDistinct(shape)) {
+        drawShapeOverlay(shape.map((point) => getMirroredPoint(point)));
       }
-      ctx.closePath();
-      ctx.fill();
     }
     ctx.globalAlpha = 1;
   }
 
   // Draw stored lines
-  ctx.strokeStyle = '#56606f';
-  ctx.lineWidth = 2;
-  
-  for (let line of state.lines) {
-    ctx.beginPath();
-    ctx.moveTo(getDisplayXForColumn(line.start.col, w) + w / 2, line.start.row * h + h / 2);
-    ctx.lineTo(getDisplayXForColumn(line.end.col, w) + w / 2, line.end.row * h + h / 2);
-    ctx.stroke();
+  if (state.showLines) {
+    ctx.lineWidth = 2;
+    
+    for (let line of state.lines) {
+      ctx.strokeStyle = line.color || state.lineColor;
+      ctx.beginPath();
+      ctx.moveTo(getDisplayXForColumn(line.start.col, w) + w / 2, line.start.row * h + h / 2);
+      ctx.lineTo(getDisplayXForColumn(line.end.col, w) + w / 2, line.end.row * h + h / 2);
+      ctx.stroke();
+    }
   }
 
   // Draw design lines
@@ -1609,8 +2162,8 @@ function draw() {
   }
 
   // Draw temporary line while selecting end point
-  if (state.lineStartCell && state.hoveredCell) {
-    ctx.strokeStyle = '#56606f';
+  if (state.showLines && state.lineStartCell && state.hoveredCell) {
+    ctx.strokeStyle = state.lineColor;
     ctx.lineWidth = 2;
     ctx.setLineDash([5, 5]);
     ctx.beginPath();
@@ -1623,7 +2176,7 @@ function draw() {
   ctx.restore();
 
   // Draw line length info near the line endpoint
-  if (state.lineStartCell && state.hoveredCell) {
+  if (state.showLines && state.lineStartCell && state.hoveredCell) {
     const lineInfo = calculateLineLength(state.lineStartCell, state.hoveredCell);
     const endX = state.offsetX + getDisplayXForColumn(state.hoveredCell.col, w) + w / 2;
     const endY = state.offsetY + (state.hoveredCell.row * h + h / 2);
@@ -1683,7 +2236,10 @@ canvas.addEventListener('mousedown', (e) => {
       } else {
         const lineObj = {
           start: state.lineStartCell,
-          end: coords
+          end: coords,
+          color: state.lineColor,
+          mirrorAtCreation: state.mirrorFutureDrawing,
+          mirrorBaked: false
         };
         state.lines.push(lineObj);
         state.actionHistory.push({ type: 'line' });
@@ -1705,7 +2261,12 @@ canvas.addEventListener('mousedown', (e) => {
           // Remove duplicate endpoint from list; first already present
           state.currentShapePoints.pop();
           
-          state.closedShapes.push([...state.currentShapePoints]);
+          state.closedShapes.push({
+            points: [...state.currentShapePoints],
+            fillColor: state.fillColor,
+            mirrorAtCreation: state.mirrorFutureDrawing,
+            mirrorBaked: false
+          });
           state.currentShapePoints = [];
           state.lineStartCell = null;
         } else {
@@ -1788,7 +2349,9 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.key === ' ' && !state.isSpacePressed) {
+  const tag = document.activeElement && document.activeElement.tagName;
+  const isTyping = tag === 'INPUT' || tag === 'TEXTAREA';
+  if (e.key === ' ' && !state.isSpacePressed && !isTyping) {
     e.preventDefault();
     state.isSpacePressed = true;
     canvas.style.cursor = 'grab';
@@ -1872,17 +2435,7 @@ document.addEventListener('keydown', (e) => {
 });
 
 function getNearestCellFromCm(xCm, yCm) {
-  const rectWidthCm = state.cmPer30Stitches / 30;
-  const rectHeightCm = state.cmPer30Rows / 30;
-  const { rightStart } = getNeedleLayout();
-
-  let col = Math.round((xCm / rectWidthCm) + rightStart - 0.5);
-  let rowBottom = Math.round(yCm / rectHeightCm - 0.5);
-
-  col = Math.max(0, Math.min(COLS - 1, col));
-  rowBottom = Math.max(0, Math.min(ROWS - 1, rowBottom));
-
-  return { row: ROWS - 1 - rowBottom, col };
+  return cmToGridLegacy(xCm, yCm);
 }
 
 function undoLastAction() {
@@ -1973,54 +2526,6 @@ function updateScaleDisplay() {
   `;
 }
 
-function isPointInPolygon(point, polygon) {
-  // Treat points on polygon edges as inside to avoid small gaps on triangle edges.
-  const EPSILON = 1e-9;
-
-  const isPointOnSegment = (px, py, x1, y1, x2, y2) => {
-    const cross = (px - x1) * (y2 - y1) - (py - y1) * (x2 - x1);
-    if (Math.abs(cross) > EPSILON) {
-      return false;
-    }
-    const dot = (px - x1) * (px - x2) + (py - y1) * (py - y2);
-    return dot <= EPSILON;
-  };
-
-  // Ray casting algorithm to check if a point is inside a polygon.
-  let inside = false;
-  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i].col, yi = polygon[i].row;
-    const xj = polygon[j].col, yj = polygon[j].row;
-
-    if (isPointOnSegment(point.col, point.row, xi, yi, xj, yj)) {
-      return true;
-    }
-
-    const intersect = ((yi > point.row) !== (yj > point.row)) &&
-      (point.col < (xj - xi) * (point.row - yi) / (yj - yi) + xi);
-    if (intersect) inside = !inside;
-  }
-  return inside;
-}
-
-function isCellInsidePolygon(row, col, polygon) {
-  const samples = [
-    { row: row + 0.5, col: col + 0.5 },
-    { row: row + 0.2, col: col + 0.2 },
-    { row: row + 0.2, col: col + 0.8 },
-    { row: row + 0.8, col: col + 0.2 },
-    { row: row + 0.8, col: col + 0.8 }
-  ];
-
-  for (const sample of samples) {
-    if (isPointInPolygon(sample, polygon)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 function countStitchesInRow(row) {
   let count = 0;
   for (let col = 0; col < COLS; col++) {
@@ -2036,12 +2541,6 @@ function isBaseCellColored(row, col) {
 }
 
 function isBaseCellInsideAnyShape(row, col) {
-  for (const shape of state.closedShapes) {
-    if (isCellInsidePolygon(row, col, shape)) {
-      return true;
-    }
-  }
-
   return getInteriorCellsFromLines().has(`${row},${col}`);
 }
 
@@ -2177,9 +2676,23 @@ function stopInstructionDisplay() {
 
 function renderInstructionList() {
   const list = document.getElementById('instruction-list');
-  list.innerHTML = '';
+  list.innerHTML = `
+    <div class="instruction-list-header">
+      <span>Knitting Instructions</span>
+      <button class="instruction-list-collapse" id="instruction-list-collapse-btn" title="Collapse instructions">${state.instructionListCollapsed ? '▼' : '▲'}</button>
+    </div>
+    <div class="instruction-list-body${state.instructionListCollapsed ? ' hidden' : ''}" id="instruction-list-body"></div>
+  `;
   list.style.display = state.instructionSteps.length ? 'block' : 'none';
+  const body = document.getElementById('instruction-list-body');
+  const collapseBtn = document.getElementById('instruction-list-collapse-btn');
   let activeItem = null;
+
+  collapseBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    state.instructionListCollapsed = !state.instructionListCollapsed;
+    renderInstructionList();
+  });
 
   state.instructionSteps.forEach((step, index) => {
     const item = document.createElement('div');
@@ -2189,10 +2702,10 @@ function renderInstructionList() {
       item.classList.add('active');
       activeItem = item;
     }
-    list.appendChild(item);
+    body.appendChild(item);
   });
 
-  if (activeItem) {
+  if (activeItem && !state.instructionListCollapsed) {
     activeItem.scrollIntoView({ block: 'nearest' });
   }
 }
@@ -2229,9 +2742,13 @@ function exportDrawing() {
     designLines: state.designLines,
     construction: state.construction,
     viewMode: state.viewMode,
+    showLines: state.showLines,
+    mirrorFutureDrawing: state.mirrorFutureDrawing,
     cmPer30Stitches: state.cmPer30Stitches,
     cmPer30Rows: state.cmPer30Rows,
     cellAspect: state.cellAspect,
+    lineColor: state.lineColor,
+    fillColor: state.fillColor,
     projectName: state.projectName,
     notes: state.notes
   };
@@ -2267,37 +2784,46 @@ function gridToCm(row, col) {
   return { x, y };
 }
 
-function exportPoints() {
-  let content = '';
+function gridToCmLegacy(row, col) {
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  const x = parseFloat(((col - getNeedleLayout().rightStart) * rectWidthCm).toFixed(2));
+  const y = parseFloat(((ROWS - 1 - row) * rectHeightCm).toFixed(2));
+  return { x, y };
+}
 
-  for (let shape of state.closedShapes) {
+function exportPoints() {
+  let content = `meta coordMode=legacy-edge cmPer30Stitches=${state.cmPer30Stitches} cmPer30Rows=${state.cmPer30Rows} viewMode=${state.viewMode}\n`;
+
+  for (let shapeObj of state.closedShapes) {
+    const shape = getShapePoints(shapeObj);
+    const fillColor = getShapeFillColor(shapeObj);
     if (!shape.length) continue;
     const points = shape.map((p) => {
       const cm = gridToCm(p.row, p.col);
       return `(${cm.x},${cm.y})`;
     }).join(' ');
-    content += `inside ${points}\n`;
+    content += `inside color=${fillColor} ${points}\n`;
 
     if (isMirroringEnabled() && isMirroredShapeDistinct(shape)) {
       const mirroredPoints = shape.map((p) => {
         const cm = gridToCm(p.row, getMirroredColumn(p.col));
         return `(${cm.x},${cm.y})`;
       }).join(' ');
-      content += `inside ${mirroredPoints}\n`;
+      content += `inside color=${fillColor} ${mirroredPoints}\n`;
     }
   }
 
   for (let line of state.lines) {
+    const lineColor = line.color || state.lineColor;
     const startCm = gridToCm(line.start.row, line.start.col);
     const endCm = gridToCm(line.end.row, line.end.col);
-    content += `line (${startCm.x},${startCm.y}) (${endCm.x},${endCm.y})\n`;
+    content += `line color=${lineColor} (${startCm.x},${startCm.y}) (${endCm.x},${endCm.y})\n`;
 
     if (isMirroringEnabled() && isMirroredLineDistinct(line)) {
-      const mirroredStart = getMirroredPoint(line.start);
-      const mirroredEnd = getMirroredPoint(line.end);
-      const mirroredStartCm = gridToCm(mirroredStart.row, mirroredStart.col);
-      const mirroredEndCm = gridToCm(mirroredEnd.row, mirroredEnd.col);
-      content += `line (${mirroredStartCm.x},${mirroredStartCm.y}) (${mirroredEndCm.x},${mirroredEndCm.y})\n`;
+      const mirroredStart = gridToCm(line.start.row, getMirroredColumn(line.start.col));
+      const mirroredEnd = gridToCm(line.end.row, getMirroredColumn(line.end.col));
+      content += `line color=${lineColor} (${mirroredStart.x},${mirroredStart.y}) (${mirroredEnd.x},${mirroredEnd.y})\n`;
     }
   }
 
@@ -2320,6 +2846,7 @@ function importDrawing(file) {
   reader.onload = (e) => {
     try {
       const drawingData = JSON.parse(e.target.result);
+      const importedMirrorFuture = drawingData.mirrorFutureDrawing !== false;
       // Validate
       if (!drawingData.ROWS || !drawingData.COLS) {
         alert('Invalid drawing file.');
@@ -2331,13 +2858,38 @@ function importDrawing(file) {
         return;
       }
       // Set state
-      state.lines = drawingData.lines || [];
+      state.lineColor = drawingData.lineColor || '#000000';
+      state.fillColor = drawingData.fillColor || '#56606f';
+      state.mirrorFutureDrawing = importedMirrorFuture;
+      state.lines = (drawingData.lines || []).map((line) => ({
+        start: line.start,
+        end: line.end,
+        color: line.color || state.lineColor,
+        mirrorAtCreation: line.mirrorAtCreation ?? importedMirrorFuture,
+        mirrorBaked: !!line.mirrorBaked
+      }));
       state.coloredCells = new Map(Object.entries(drawingData.coloredCells || {}));
       markLineDataChanged();
-      state.closedShapes = drawingData.closedShapes || [];
+      state.closedShapes = (drawingData.closedShapes || []).map((shape) => {
+        if (Array.isArray(shape)) {
+          return {
+            points: shape,
+            fillColor: state.fillColor,
+            mirrorAtCreation: importedMirrorFuture,
+            mirrorBaked: false
+          };
+        }
+        return {
+          points: Array.isArray(shape.points) ? shape.points : [],
+          fillColor: shape.fillColor || state.fillColor,
+          mirrorAtCreation: shape.mirrorAtCreation ?? importedMirrorFuture,
+          mirrorBaked: !!shape.mirrorBaked
+        };
+      });
       state.designLines = drawingData.designLines || [];
       state.construction = drawingData.construction || 'top-down';
       state.viewMode = drawingData.viewMode || 'half';
+      state.showLines = drawingData.showLines !== false;
       state.cmPer30Stitches = drawingData.cmPer30Stitches || 10;
       state.cmPer30Rows = drawingData.cmPer30Rows || 10;
       state.cellAspect = drawingData.cellAspect || 1;
@@ -2347,6 +2899,10 @@ function importDrawing(file) {
       // Update UI
       document.getElementById('construction-select').value = state.construction;
       document.getElementById('full-mode-toggle').checked = state.viewMode === 'full';
+      document.getElementById('show-lines-checkbox').checked = state.showLines;
+      document.getElementById('mirror-future-checkbox').checked = state.mirrorFutureDrawing;
+      document.getElementById('line-color-input').value = state.lineColor;
+      document.getElementById('fill-color-input').value = state.fillColor;
       document.getElementById('notes-area').value = state.notes;
       updateExportModeNote();
       updateScaleDisplay();
@@ -2371,20 +2927,37 @@ function importPoints(file) {
     try {
       const text = e.target.result;
       const lines = text.split('\n');
+      let coordMode = 'legacy-edge';
       for (let line of lines) {
         line = line.trim();
+        if (!line) {
+          continue;
+        }
+
+        if (line.startsWith('meta ')) {
+          const parsedCoordMode = parsePointMetadataValue(line, 'coordMode');
+          if (parsedCoordMode === 'center' || parsedCoordMode === 'legacy-edge') {
+            coordMode = parsedCoordMode;
+          }
+          continue;
+        }
+
         if (line.startsWith('inside ')) {
           const pointsStr = line.substring(7);
+          const color = parseColorFromInstructionLine(line);
           const points = parsePoints(pointsStr);
-          const gridPoints = points.map(p => cmToGrid(p.x, p.y));
-          fillShape(gridPoints);
+          const gridPoints = points.map((point) => cmToGridWithMode(point.x, point.y, coordMode));
+          fillShape(gridPoints, color);
         } else if (line.startsWith('line ')) {
           const pointsStr = line.substring(5);
+          const color = parseColorFromInstructionLine(line);
           const points = parsePoints(pointsStr);
           if (points.length === 2) {
-            const start = cmToGrid(points[0].x, points[0].y);
-            const end = cmToGrid(points[1].x, points[1].y);
-            addLine(start, end);
+            addLine(
+              cmToGridWithMode(points[0].x, points[0].y, coordMode),
+              cmToGridWithMode(points[1].x, points[1].y, coordMode),
+              color
+            );
           }
         }
       }
@@ -2396,24 +2969,40 @@ function importPoints(file) {
   reader.readAsText(file);
 }
 
-function fillShape(shapePoints) {
+function fillShape(shapePoints, fillColor = state.fillColor, options = {}) {
   if (!shapePoints || !shapePoints.length) return;
-  // Ensure shape is closed by re-adding the first point at the end for consistency
-  if (shapePoints.length > 1) {
-    const first = shapePoints[0];
-    const last = shapePoints[shapePoints.length - 1];
-    if (first.row !== last.row || first.col !== last.col) {
-      shapePoints.push({ row: first.row, col: first.col });
+  const points = shapePoints.map((point) => ({ row: point.row, col: point.col }));
+  if (points.length > 1) {
+    const first = points[0];
+    const last = points[points.length - 1];
+    if (first.row === last.row && first.col === last.col) {
+      points.pop();
     }
   }
-  state.closedShapes.push(shapePoints);
+  state.closedShapes.push({
+    points,
+    fillColor,
+    cmPoints: options.cmPoints || null,
+    interiorCellKeys: options.interiorCellKeys || null,
+    mirrorAtCreation: state.mirrorFutureDrawing,
+    mirrorBaked: false
+  });
 }
 
-function addLine(start, end) {
-  const lineObj = { start, end };
+function addLine(start, end, lineColor = state.lineColor, options = {}) {
+  const lineObj = {
+    start,
+    end,
+    color: lineColor,
+    cmStart: options.cmStart || null,
+    cmEnd: options.cmEnd || null,
+    cells: options.cells || null,
+    mirrorAtCreation: state.mirrorFutureDrawing,
+    mirrorBaked: false
+  };
   state.lines.push(lineObj);
   markLineDataChanged();
-  const lineCells = getLineCells(start, end);
+  const lineCells = options.cells || getLineCells(start, end);
   const lineIndex = state.lines.length - 1;
   for (let cell of lineCells) {
     const cellKey = `${cell.row},${cell.col}`;
@@ -2444,12 +3033,41 @@ function parsePoints(str) {
   return points;
 }
 
-function cmToGrid(xCm, yCm) {
+function parseColorFromInstructionLine(str) {
+  const match = str.match(/\bcolor=(#[0-9a-fA-F]{6}|#[0-9a-fA-F]{3})\b/);
+  return match ? match[1] : null;
+}
+
+function parsePointMetadataValue(str, key) {
+  const match = str.match(new RegExp(`\\b${key}=([^\\s]+)`));
+  return match ? match[1] : null;
+}
+
+function cmToGridLegacy(xCm, yCm) {
   const rectWidthCm = state.cmPer30Stitches / 30;
   const rectHeightCm = state.cmPer30Rows / 30;
   const col = Math.round((xCm / rectWidthCm) + getNeedleLayout().rightStart);
   const row = ROWS - 1 - Math.round(yCm / rectHeightCm);
   return { row, col };
+}
+
+function cmToGridWithMode(xCm, yCm, coordMode = 'center') {
+  if (coordMode === 'legacy-edge') {
+    return cmToGridLegacy(xCm, yCm);
+  }
+  return cmToGrid(xCm, yCm);
+}
+
+function cmToGrid(xCm, yCm) {
+  const rectWidthCm = state.cmPer30Stitches / 30;
+  const rectHeightCm = state.cmPer30Rows / 30;
+  let col = Math.round(xCm / rectWidthCm);
+  let rowBottom = Math.round(yCm / rectHeightCm);
+
+  col = Math.max(0, Math.min(COLS - 1, col));
+  rowBottom = Math.max(0, Math.min(ROWS - 1, rowBottom));
+
+  return { row: ROWS - 1 - rowBottom, col };
 }
 
 // Initialize
